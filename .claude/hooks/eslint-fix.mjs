@@ -9,7 +9,7 @@ for await (const chunk of process.stdin) raw += chunk;
 
 const file = JSON.parse(raw || "{}").tool_input?.file_path;
 if (!file || !EXTS.has(extname(file).toLowerCase())) process.exit(0);
-if (/[\/](node_modules|\.next)[\/]/.test(file)) process.exit(0);
+if (/[\\/](node_modules|\.next)[\\/]/.test(file)) process.exit(0);
 
 const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const bin = join(root, "node_modules", "eslint", "bin", "eslint.js");
