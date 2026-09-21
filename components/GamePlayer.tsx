@@ -3,18 +3,7 @@
 import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
-
-interface StoredUser {
-  name: string;
-}
-
-function readUser(): StoredUser | null {
-  try {
-    return JSON.parse(localStorage.getItem("av_user") || "null");
-  } catch {
-    return null;
-  }
-}
+import { useUser } from "@/lib/useUser";
 
 function saveScore(entry: { game: string; score: number; name: string }) {
   try {
@@ -30,16 +19,13 @@ export default function GamePlayer({ id }: { id: string }) {
 
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
-  const [level, setLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
-  const [name, setName] = useState("INVITADO");
+  const user = useUser();
+  const [nameInput, setNameInput] = useState<string | null>(null);
+  const name = nameInput ?? user?.name ?? "INVITADO";
+  const level = 1 + Math.floor(score / 2500);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    const user = readUser();
-    if (user) setName(user.name);
-  }, []);
 
   useEffect(() => {
     if (over || paused) return;
@@ -50,17 +36,12 @@ export default function GamePlayer({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [over, paused]);
 
-  useEffect(() => {
-    if (score > 0 && score % 2500 < 100) setLevel((l) => l + 1);
-  }, [score]);
-
   if (!game) notFound();
 
   const endGame = () => setOver(true);
   const restart = () => {
     setScore(0);
     setLives(3);
-    setLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
@@ -158,7 +139,7 @@ export default function GamePlayer({ id }: { id: string }) {
                 <input
                   value={name}
                   onChange={(e) =>
-                    setName(e.target.value.toUpperCase().slice(0, 10))
+                    setNameInput(e.target.value.toUpperCase().slice(0, 10))
                   }
                   placeholder="TUS INICIALES"
                 />

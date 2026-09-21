@@ -1,29 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GAMES, seededScores } from "@/lib/games";
-
-interface StoredUser {
-  name: string;
-}
-
-function readUser(): StoredUser | null {
-  try {
-    return JSON.parse(localStorage.getItem("av_user") || "null");
-  } catch {
-    return null;
-  }
-}
+import { useUser } from "@/lib/useUser";
 
 export default function HallOfFame() {
   const router = useRouter();
   const [tab, setTab] = useState(GAMES[0].id);
-  const [user, setUser] = useState<StoredUser | null>(null);
-
-  useEffect(() => {
-    setUser(readUser());
-  }, []);
+  const user = useUser();
 
   const rows = useMemo(() => seededScores(tab.length * 23 + 7, 12), [tab]);
   const game = GAMES.find((g) => g.id === tab)!;

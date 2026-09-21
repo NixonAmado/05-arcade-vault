@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { setStoredUser } from "@/lib/useUser";
 
 export default function Auth() {
   const router = useRouter();
@@ -11,11 +12,7 @@ export default function Auth() {
   const [email, setEmail] = useState("");
 
   const login = (name: string | null) => {
-    if (name) {
-      localStorage.setItem("av_user", JSON.stringify({ name }));
-    } else {
-      localStorage.removeItem("av_user");
-    }
+    setStoredUser(name ? { name } : null);
     router.push("/biblioteca");
   };
 

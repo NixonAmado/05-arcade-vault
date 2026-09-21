@@ -1,41 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-
-interface StoredUser {
-  name: string;
-}
-
-function readUser(): StoredUser | null {
-  try {
-    return JSON.parse(localStorage.getItem("av_user") || "null");
-  } catch {
-    return null;
-  }
-}
+import { setStoredUser, useUser } from "@/lib/useUser";
 
 export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<StoredUser | null>(null);
-
-  useEffect(() => {
-    setUser(readUser());
-    const onStorage = () => setUser(readUser());
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [pathname]);
-
-  const isActive = (name: "biblioteca" | "salon" | "login") => {
+  const user = useUser();
+  const isActive = (name: "home" | "biblioteca" | "salon" | "acerca" | "login") => {
+    if (name === "home") return pathname === "/";
+    if (name === "acerca") return pathname === "/acerca";
     if (name === "biblioteca") {
-      return (
-        pathname === "/" ||
-        pathname.startsWith("/biblioteca") ||
-        pathname.startsWith("/juego")
-      );
+      return pathname.startsWith("/biblioteca") || pathname.startsWith("/juego");
     }
     if (name === "salon") return pathname.startsWith("/salon");
     return pathname.startsWith("/login");
@@ -47,21 +26,23 @@ export default function Nav() {
   };
 
   const handleSignOut = () => {
-    localStorage.removeItem("av_user");
-    setUser(null);
+    setStoredUser(null);
     router.push("/biblioteca");
   };
 
   return (
     <>
       <nav className="av-nav">
-        <div className="logo" onClick={() => go("/biblioteca")}>
+        <div className="logo" onClick={() => go("/")}>
           <div className="logo-mark"></div>
           <div className="logo-text neon-cyan">
             ARCADE <span className="neon-magenta">VAULT</span>
           </div>
         </div>
         <div className="links">
+          <Link href="/" className={isActive("home") ? "active" : ""}>
+            Inicio
+          </Link>
           <Link
             href="/biblioteca"
             className={isActive("biblioteca") ? "active" : ""}
@@ -70,6 +51,9 @@ export default function Nav() {
           </Link>
           <Link href="/salon" className={isActive("salon") ? "active" : ""}>
             Salón de la Fama
+          </Link>
+          <Link href="/acerca" className={isActive("acerca") ? "active" : ""}>
+            Acerca de
           </Link>
         </div>
         <div className="spacer"></div>
@@ -104,6 +88,13 @@ export default function Nav() {
           MENÚ
         </div>
         <Link
+          href="/"
+          className={isActive("home") ? "active" : ""}
+          onClick={() => setOpen(false)}
+        >
+          Inicio
+        </Link>
+        <Link
           href="/biblioteca"
           className={isActive("biblioteca") ? "active" : ""}
           onClick={() => setOpen(false)}
@@ -116,6 +107,13 @@ export default function Nav() {
           onClick={() => setOpen(false)}
         >
           Salón de la Fama
+        </Link>
+        <Link
+          href="/acerca"
+          className={isActive("acerca") ? "active" : ""}
+          onClick={() => setOpen(false)}
+        >
+          Acerca de
         </Link>
         <Link
           href="/login"
