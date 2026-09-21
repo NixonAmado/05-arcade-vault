@@ -4,14 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-## Comandos
-
-- `npm run dev` — servidor de desarrollo (http://localhost:3000)
-- `npm run build` — build de producción
-- `npm run start` — servir el build de producción
-- `npm run lint` — ESLint (flat config en `eslint.config.mjs`, extiende `eslint-config-next/core-web-vitals` y `eslint-config-next/typescript`)
-
 No hay suite de tests configurada todavía.
+
+## Skills
+
+Usa siempre la skill /frontend-design para diseñar interfaces de usuario.
 
 ## Arquitectura
 
