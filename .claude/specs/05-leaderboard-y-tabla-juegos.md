@@ -2,7 +2,7 @@
 
 **State:** Draft  
 **Depends on:** SPEC 04 (Asteroids Game)  
-**Date:** 2026-09-21  
+**Date:** 2026-09-21   
 **Objective:** Implementar leaderboard (global y personal) y tabla de historial de partidas de Asteroids, con persistencia en localStorage e integración futura con Supabase.
 
 ## Scope
