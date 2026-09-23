@@ -1,6 +1,6 @@
 # SPEC 05: Leaderboard y Tabla de Juegos
 
-**State:** Aprobado
+**State:** Implementado
 **Depends on:** SPEC 04 (Asteroids Game), 04-supabase-integracion (cliente base)
 **Date:** 2026-09-22
 **Objective:** Implementar leaderboard (global y personal) y tabla de historial de partidas de Asteroids, persistiendo directamente en Supabase (tabla `game_sessions` con RLS).

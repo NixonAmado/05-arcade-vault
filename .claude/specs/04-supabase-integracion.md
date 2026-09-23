@@ -1,6 +1,6 @@
 # 04 — Integración base de Supabase
 
-**Estado:** Aprobado
+**Estado:** Implementado
 **Depende de:** 03-about-page
 **Fecha:** 2026-09-20
 
