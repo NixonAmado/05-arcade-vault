@@ -5,6 +5,9 @@ import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
 import { useUser } from "@/lib/useUser";
 import { AsteroidsGame, GameState as AsteroidsState } from "@/lib/asteroids-game";
+import { insertGameSession } from "@/lib/gameSessions";
+
+const WIN_LEVEL = 5;
 
 function saveScore(entry: { game: string; score: number; name: string }) {
   try {
@@ -100,6 +103,11 @@ export default function GamePlayer({ id }: { id: string }) {
   const rafRef = useRef<number | null>(null);
   const pausedRef = useRef(paused);
   const overRef = useRef(over);
+  const startTimeRef = useRef<number>(null);
+  const sessionSavedRef = useRef(false);
+  const [sessionStatus, setSessionStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -126,6 +134,7 @@ export default function GamePlayer({ id }: { id: string }) {
 
     const engine = new AsteroidsGame(800, 600);
     engineRef.current = engine;
+    startTimeRef.current = Date.now();
     setAsteroidsState(engine.getState());
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -172,6 +181,28 @@ export default function GamePlayer({ id }: { id: string }) {
   const dLives = isAsteroids ? asteroidsState?.lives ?? 3 : lives;
   const dLevel = isAsteroids ? asteroidsState?.level ?? 1 : level;
 
+  // Al terminar una partida de Asteroids, se guarda automáticamente en Supabase.
+  useEffect(() => {
+    if (!isAsteroids || !over || sessionSavedRef.current) return;
+    sessionSavedRef.current = true;
+    setSessionStatus("saving");
+
+    const durationSeconds = startTimeRef.current
+      ? Math.max(0, Math.round((Date.now() - startTimeRef.current) / 1000))
+      : 0;
+
+    insertGameSession({
+      nickname: name,
+      score: dScore,
+      wave_completed: dLevel,
+      won: dLevel >= WIN_LEVEL,
+      duration_seconds: durationSeconds,
+    })
+      .then(() => setSessionStatus("saved"))
+      .catch(() => setSessionStatus("error"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAsteroids, over]);
+
   const endGame = () => setOver(true);
   const restart = () => {
     setScore(0);
@@ -181,7 +212,10 @@ export default function GamePlayer({ id }: { id: string }) {
     setSaved(false);
     if (isAsteroids) {
       engineRef.current?.reset();
+      startTimeRef.current = Date.now();
       overRef.current = false;
+      sessionSavedRef.current = false;
+      setSessionStatus("idle");
     }
   };
 
@@ -283,6 +317,14 @@ export default function GamePlayer({ id }: { id: string }) {
             <h2>FIN DEL JUEGO</h2>
             <div className="final-label">PUNTUACIÓN FINAL</div>
             <div className="final">{dScore.toLocaleString("es-ES")}</div>
+            {isAsteroids && (
+              <div className="toast-saved" style={{ marginBottom: 12 }}>
+                {sessionStatus === "saving" && "▸ GUARDANDO PARTIDA EN SUPABASE…"}
+                {sessionStatus === "saved" && "▸ PARTIDA GUARDADA EN SUPABASE_"}
+                {sessionStatus === "error" &&
+                  "▸ ERROR AL GUARDAR LA PARTIDA. INTENTÁ DE NUEVO MÁS TARDE."}
+              </div>
+            )}
             {!saved ? (
               <div className="input-row">
                 <input

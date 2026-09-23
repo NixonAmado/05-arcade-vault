@@ -10,13 +10,17 @@ export default function Nav() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const user = useUser();
-  const isActive = (name: "home" | "biblioteca" | "salon" | "acerca" | "login") => {
+  const isActive = (
+    name: "home" | "biblioteca" | "salon" | "leaderboard" | "games" | "acerca" | "login"
+  ) => {
     if (name === "home") return pathname === "/";
     if (name === "acerca") return pathname === "/acerca";
     if (name === "biblioteca") {
       return pathname.startsWith("/biblioteca") || pathname.startsWith("/juego");
     }
     if (name === "salon") return pathname.startsWith("/salon");
+    if (name === "leaderboard") return pathname.startsWith("/leaderboard");
+    if (name === "games") return pathname.startsWith("/games");
     return pathname.startsWith("/login");
   };
 
@@ -51,6 +55,15 @@ export default function Nav() {
           </Link>
           <Link href="/salon" className={isActive("salon") ? "active" : ""}>
             Salón de la Fama
+          </Link>
+          <Link
+            href="/leaderboard"
+            className={isActive("leaderboard") ? "active" : ""}
+          >
+            Leaderboard
+          </Link>
+          <Link href="/games" className={isActive("games") ? "active" : ""}>
+            Mis Partidas
           </Link>
           <Link href="/acerca" className={isActive("acerca") ? "active" : ""}>
             Acerca de
@@ -107,6 +120,20 @@ export default function Nav() {
           onClick={() => setOpen(false)}
         >
           Salón de la Fama
+        </Link>
+        <Link
+          href="/leaderboard"
+          className={isActive("leaderboard") ? "active" : ""}
+          onClick={() => setOpen(false)}
+        >
+          Leaderboard
+        </Link>
+        <Link
+          href="/games"
+          className={isActive("games") ? "active" : ""}
+          onClick={() => setOpen(false)}
+        >
+          Mis Partidas
         </Link>
         <Link
           href="/acerca"
