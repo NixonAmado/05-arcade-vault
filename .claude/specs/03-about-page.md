@@ -1,6 +1,6 @@
 # 03 — About page + envío de correo (Resend)
 
-**Estado:** Borrador
+**Estado:** Implementado
 **Depende de:** 02-home-page
 **Fecha:** 2026-09-19
 
