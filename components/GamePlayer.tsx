@@ -139,6 +139,7 @@ export default function GamePlayer({ id }: { id: string }) {
       : 0;
 
     insertGameSession({
+      game_id: game.id,
       nickname: name,
       score: engineDef.getScore(engineState),
       wave_completed: engineDef.getProgress(engineState),
