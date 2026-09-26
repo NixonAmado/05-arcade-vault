@@ -17,6 +17,7 @@ export type Database = {
       game_sessions: {
         Row: {
           duration_seconds: number
+          game_id: string
           id: string
           nickname: string
           played_at: string
@@ -26,6 +27,7 @@ export type Database = {
         }
         Insert: {
           duration_seconds: number
+          game_id: string
           id?: string
           nickname: string
           played_at?: string
@@ -35,6 +37,7 @@ export type Database = {
         }
         Update: {
           duration_seconds?: number
+          game_id?: string
           id?: string
           nickname?: string
           played_at?: string

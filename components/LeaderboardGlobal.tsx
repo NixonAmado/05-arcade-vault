@@ -1,12 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import { useLeaderboard } from "@/lib/useLeaderboard";
+import { GAMES } from "@/lib/games";
+import { GAME_ENGINES } from "@/lib/game-engines";
+
+const PLAYABLE_GAMES = GAMES.filter((g) => g.id in GAME_ENGINES);
 
 export default function LeaderboardGlobal() {
-  const { entries, loading, error } = useLeaderboard();
+  const [gameId, setGameId] = useState(PLAYABLE_GAMES[0]?.id ?? "asteroids");
+  const { entries, loading, error } = useLeaderboard(gameId);
 
   return (
     <div className="data-table">
+      <div className="hall-tabs" style={{ marginBottom: 16 }}>
+        {PLAYABLE_GAMES.map((g) => (
+          <button
+            key={g.id}
+            className={"chip" + (gameId === g.id ? " active" : "")}
+            onClick={() => setGameId(g.id)}
+          >
+            {g.title}
+          </button>
+        ))}
+      </div>
       <div className="th" style={{ gridTemplateColumns: "60px 1fr 130px 90px 100px 140px" }}>
         <div>RANGO</div>
         <div>JUGADOR</div>

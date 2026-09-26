@@ -33,24 +33,34 @@ export function computeLeaderboard(sessions: GameSession[]): LeaderboardEntry[] 
     .sort((a, b) => b.totalScore - a.totalScore);
 }
 
+export function computeLeaderboardForGame(
+  sessions: GameSession[],
+  gameId: string
+): LeaderboardEntry[] {
+  return computeLeaderboard(sessions.filter((s) => s.game_id === gameId));
+}
+
 interface UseLeaderboardResult {
   entries: LeaderboardEntry[];
   loading: boolean;
   error: string | null;
 }
 
-export function useLeaderboard(): UseLeaderboardResult {
+export function useLeaderboard(gameId?: string): UseLeaderboardResult {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
 
     fetchAllSessions()
       .then((sessions) => {
         if (cancelled) return;
-        setEntries(computeLeaderboard(sessions));
+        setEntries(
+          gameId ? computeLeaderboardForGame(sessions, gameId) : computeLeaderboard(sessions)
+        );
       })
       .catch((err) => {
         if (cancelled) return;
@@ -63,7 +73,7 @@ export function useLeaderboard(): UseLeaderboardResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [gameId]);
 
   return { entries, loading, error };
 }

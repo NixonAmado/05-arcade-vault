@@ -32,8 +32,8 @@ export const GAMES: Game[] = [
     cat: "PUZZLE",
     cover: "cover-tetro",
     color: "magenta",
-    best: 184220,
-    plays: "31.8K",
+    best: 0,
+    plays: "0",
   },
   {
     id: "serpentina",
