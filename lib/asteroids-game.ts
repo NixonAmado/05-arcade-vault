@@ -8,6 +8,9 @@ import {
   rand,
   wrap,
 } from './asteroids-engine';
+import type { GameDefinition } from './game-engine';
+
+const WIN_LEVEL = 5;
 
 export type GameStateType = 'playing' | 'dead' | 'gameover';
 
@@ -187,3 +190,82 @@ export class AsteroidsGame {
     return this.gameState;
   }
 }
+
+export function drawAsteroids(
+  ctx: CanvasRenderingContext2D,
+  state: GameState
+): void {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 800, 600);
+
+  state.particles.forEach((p) => {
+    const alpha = p.ttl / p.life;
+    ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x - p.vx * 0.05, p.y - p.vy * 0.05);
+    ctx.stroke();
+  });
+
+  state.asteroids.forEach((a) => {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.rot);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(a.verts[0][0], a.verts[0][1]);
+    for (let i = 1; i < a.verts.length; i++) ctx.lineTo(a.verts[i][0], a.verts[i][1]);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  state.bullets.forEach((b) => {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  if (!state.ship.dead) {
+    if (state.ship.invincible <= 0 || Math.floor(state.ship.invincible * 8) % 2 === 0) {
+      ctx.save();
+      ctx.translate(state.ship.x, state.ship.y);
+      ctx.rotate(state.ship.angle);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(20, 0);
+      ctx.lineTo(-12, -9);
+      ctx.lineTo(-7, 0);
+      ctx.lineTo(-12, 9);
+      ctx.closePath();
+      ctx.stroke();
+
+      if (state.ship.thrusting && Math.random() > 0.35) {
+        ctx.beginPath();
+        ctx.moveTo(-8, -4);
+        ctx.lineTo(-8 - (Math.random() * 8 + 6), 0);
+        ctx.lineTo(-8, 4);
+        ctx.strokeStyle = 'rgba(255, 130, 0, 0.85)';
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+}
+
+export const asteroidsDefinition: GameDefinition<GameState> = {
+  width: 800,
+  height: 600,
+  create: () => new AsteroidsGame(800, 600),
+  draw: drawAsteroids,
+  isGameOver: (state) => state.state === 'gameover',
+  getScore: (state) => state.score,
+  getProgress: (state) => state.level,
+  hasWon: (state) => state.level >= WIN_LEVEL,
+};

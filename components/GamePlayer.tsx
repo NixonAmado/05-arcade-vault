@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
 import { useUser } from "@/lib/useUser";
-import { AsteroidsGame, GameState as AsteroidsState } from "@/lib/asteroids-game";
+import type { GameState as AsteroidsState } from "@/lib/asteroids-game";
+import type { GameEngine } from "@/lib/game-engine";
+import { GAME_ENGINES } from "@/lib/game-engines";
 import { insertGameSession } from "@/lib/gameSessions";
-
-const WIN_LEVEL = 5;
 
 function saveScore(entry: { game: string; score: number; name: string }) {
   try {
@@ -17,75 +17,11 @@ function saveScore(entry: { game: string; score: number; name: string }) {
   } catch {}
 }
 
-function drawAsteroids(ctx: CanvasRenderingContext2D, state: AsteroidsState) {
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, 800, 600);
-
-  state.particles.forEach((p) => {
-    const alpha = p.ttl / p.life;
-    ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x - p.vx * 0.05, p.y - p.vy * 0.05);
-    ctx.stroke();
-  });
-
-  state.asteroids.forEach((a) => {
-    ctx.save();
-    ctx.translate(a.x, a.y);
-    ctx.rotate(a.rot);
-    ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(a.verts[0][0], a.verts[0][1]);
-    for (let i = 1; i < a.verts.length; i++) ctx.lineTo(a.verts[i][0], a.verts[i][1]);
-    ctx.closePath();
-    ctx.stroke();
-    ctx.restore();
-  });
-
-  state.bullets.forEach((b) => {
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  if (!state.ship.dead) {
-    if (state.ship.invincible <= 0 || Math.floor(state.ship.invincible * 8) % 2 === 0) {
-      ctx.save();
-      ctx.translate(state.ship.x, state.ship.y);
-      ctx.rotate(state.ship.angle);
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 1.5;
-      ctx.lineJoin = "round";
-      ctx.beginPath();
-      ctx.moveTo(20, 0);
-      ctx.lineTo(-12, -9);
-      ctx.lineTo(-7, 0);
-      ctx.lineTo(-12, 9);
-      ctx.closePath();
-      ctx.stroke();
-
-      if (state.ship.thrusting && Math.random() > 0.35) {
-        ctx.beginPath();
-        ctx.moveTo(-8, -4);
-        ctx.lineTo(-8 - (Math.random() * 8 + 6), 0);
-        ctx.lineTo(-8, 4);
-        ctx.strokeStyle = "rgba(255, 130, 0, 0.85)";
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-  }
-}
-
 export default function GamePlayer({ id }: { id: string }) {
   const router = useRouter();
   const game = GAMES.find((g) => g.id === id);
   const isAsteroids = game?.id === "asteroids";
+  const engineDef = game ? GAME_ENGINES[game.id] : undefined;
 
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
@@ -97,9 +33,9 @@ export default function GamePlayer({ id }: { id: string }) {
   const level = 1 + Math.floor(score / 2500);
   const [saved, setSaved] = useState(false);
 
-  const [asteroidsState, setAsteroidsState] = useState<AsteroidsState | null>(null);
+  const [engineState, setEngineState] = useState<unknown>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const engineRef = useRef<AsteroidsGame | null>(null);
+  const engineRef = useRef<GameEngine<unknown> | null>(null);
   const rafRef = useRef<number | null>(null);
   const pausedRef = useRef(paused);
   const overRef = useRef(over);
@@ -117,25 +53,25 @@ export default function GamePlayer({ id }: { id: string }) {
   }, [over]);
 
   useEffect(() => {
-    if (isAsteroids || over || paused) return;
+    if (engineDef || over || paused) return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
       220
     );
     return () => clearInterval(t);
-  }, [isAsteroids, over, paused]);
+  }, [engineDef, over, paused]);
 
   useEffect(() => {
-    if (!isAsteroids) return;
+    if (!engineDef) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const engine = new AsteroidsGame(800, 600);
+    const engine = engineDef.create();
     engineRef.current = engine;
     startTimeRef.current = Date.now();
-    setAsteroidsState(engine.getState());
+    setEngineState(engine.getState());
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) {
@@ -156,10 +92,10 @@ export default function GamePlayer({ id }: { id: string }) {
         engineRef.current?.update(dt);
       }
       const state = engineRef.current?.getState();
-      if (state) {
-        setAsteroidsState({ ...state });
-        drawAsteroids(ctx, state);
-        if (state.state === "gameover" && !overRef.current) {
+      if (state !== undefined) {
+        setEngineState(state);
+        engineDef.draw(ctx, state);
+        if (engineDef.isGameOver(state) && !overRef.current) {
           overRef.current = true;
           setOver(true);
         }
@@ -173,17 +109,28 @@ export default function GamePlayer({ id }: { id: string }) {
       window.removeEventListener("keyup", handleKeyUp);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [isAsteroids]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engineDef]);
 
   if (!game) notFound();
 
-  const dScore = isAsteroids ? asteroidsState?.score ?? 0 : score;
-  const dLives = isAsteroids ? asteroidsState?.lives ?? 3 : lives;
-  const dLevel = isAsteroids ? asteroidsState?.level ?? 1 : level;
+  const dScore = engineDef
+    ? engineState !== null
+      ? engineDef.getScore(engineState)
+      : 0
+    : score;
+  const dLives = isAsteroids
+    ? (engineState as AsteroidsState | null)?.lives ?? 3
+    : lives;
+  const dLevel = engineDef
+    ? engineState !== null
+      ? engineDef.getProgress(engineState)
+      : 1
+    : level;
 
-  // Al terminar una partida de Asteroids, se guarda automáticamente en Supabase.
+  // Al terminar una partida con motor registrado, se guarda automáticamente en Supabase.
   useEffect(() => {
-    if (!isAsteroids || !over || sessionSavedRef.current) return;
+    if (!engineDef || !over || sessionSavedRef.current || engineState === null) return;
     sessionSavedRef.current = true;
     setSessionStatus("saving");
 
@@ -193,15 +140,15 @@ export default function GamePlayer({ id }: { id: string }) {
 
     insertGameSession({
       nickname: name,
-      score: dScore,
-      wave_completed: dLevel,
-      won: dLevel >= WIN_LEVEL,
+      score: engineDef.getScore(engineState),
+      wave_completed: engineDef.getProgress(engineState),
+      won: engineDef.hasWon(engineState),
       duration_seconds: durationSeconds,
     })
       .then(() => setSessionStatus("saved"))
       .catch(() => setSessionStatus("error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAsteroids, over]);
+  }, [engineDef, over]);
 
   const endGame = () => setOver(true);
   const restart = () => {
@@ -210,7 +157,7 @@ export default function GamePlayer({ id }: { id: string }) {
     setPaused(false);
     setOver(false);
     setSaved(false);
-    if (isAsteroids) {
+    if (engineDef) {
       engineRef.current?.reset();
       startTimeRef.current = Date.now();
       overRef.current = false;
@@ -233,10 +180,12 @@ export default function GamePlayer({ id }: { id: string }) {
             <div className="l">Puntuación</div>
             <div className="v">{dScore.toLocaleString("es-ES")}</div>
           </div>
-          <div className="hud-stat lives">
-            <div className="l">Vidas</div>
-            <div className="v">{"♥ ".repeat(dLives).trim() || "—"}</div>
-          </div>
+          {isAsteroids && (
+            <div className="hud-stat lives">
+              <div className="l">Vidas</div>
+              <div className="v">{"♥ ".repeat(dLives).trim() || "—"}</div>
+            </div>
+          )}
           <div className="hud-stat level">
             <div className="l">Nivel</div>
             <div className="v">{String(dLevel).padStart(2, "0")}</div>
@@ -260,12 +209,12 @@ export default function GamePlayer({ id }: { id: string }) {
 
       <div className="crt">
         <div className="crt-screen">
-          {isAsteroids ? (
+          {engineDef ? (
             <div className="game-arena">
               <canvas
                 ref={canvasRef}
-                width={800}
-                height={600}
+                width={engineDef.width}
+                height={engineDef.height}
                 style={{ width: "100%", height: "100%", display: "block" }}
               />
             </div>
@@ -317,7 +266,7 @@ export default function GamePlayer({ id }: { id: string }) {
             <h2>FIN DEL JUEGO</h2>
             <div className="final-label">PUNTUACIÓN FINAL</div>
             <div className="final">{dScore.toLocaleString("es-ES")}</div>
-            {isAsteroids && (
+            {engineDef && (
               <div className="toast-saved" style={{ marginBottom: 12 }}>
                 {sessionStatus === "saving" && "▸ GUARDANDO PARTIDA EN SUPABASE…"}
                 {sessionStatus === "saved" && "▸ PARTIDA GUARDADA EN SUPABASE_"}
