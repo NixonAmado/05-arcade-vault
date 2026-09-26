@@ -14,7 +14,7 @@ export default function LeaderboardPage() {
       <div className="hall-head">
         <h1>LEADERBOARD</h1>
         <p className="pixel" style={{ fontSize: 10 }}>
-          RANKING DE ASTEROIDS EN VIVO DESDE SUPABASE
+          RANKING EN VIVO DESDE SUPABASE, POR JUEGO
         </p>
       </div>
 

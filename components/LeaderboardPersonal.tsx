@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchSessionsByNickname } from "@/lib/gameSessions";
+import { fetchSessionsByNicknameAndGame } from "@/lib/gameSessions";
 import { useUser } from "@/lib/useUser";
+import { GAMES } from "@/lib/games";
+import { GAME_ENGINES } from "@/lib/game-engines";
 import type { GameSession } from "@/types";
+
+const PLAYABLE_GAMES = GAMES.filter((g) => g.id in GAME_ENGINES);
 
 export default function LeaderboardPersonal() {
   const user = useUser();
+  const [gameId, setGameId] = useState(PLAYABLE_GAMES[0]?.id ?? "asteroids");
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,8 +20,9 @@ export default function LeaderboardPersonal() {
     if (!user) return;
 
     let cancelled = false;
+    setLoading(true);
 
-    fetchSessionsByNickname(user.name)
+    fetchSessionsByNicknameAndGame(user.name, gameId)
       .then((data) => {
         if (cancelled) return;
         setSessions(data);
@@ -34,7 +40,7 @@ export default function LeaderboardPersonal() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, gameId]);
 
   if (!user) {
     return <div className="state">INICIÁ SESIÓN PARA VER TU LEADERBOARD PERSONAL</div>;
@@ -42,6 +48,17 @@ export default function LeaderboardPersonal() {
 
   return (
     <div className="data-table">
+      <div className="hall-tabs" style={{ marginBottom: 16 }}>
+        {PLAYABLE_GAMES.map((g) => (
+          <button
+            key={g.id}
+            className={"chip" + (gameId === g.id ? " active" : "")}
+            onClick={() => setGameId(g.id)}
+          >
+            {g.title}
+          </button>
+        ))}
+      </div>
       <div className="th" style={{ gridTemplateColumns: "70px 1fr 100px 140px" }}>
         <div>SCORE</div>
         <div>NIVEL ALCANZADO</div>

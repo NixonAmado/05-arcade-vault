@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchSessionsByNickname } from "@/lib/gameSessions";
+import { fetchSessionsByNicknameAndGame } from "@/lib/gameSessions";
 import { useUser } from "@/lib/useUser";
+import { GAMES } from "@/lib/games";
+import { GAME_ENGINES } from "@/lib/game-engines";
 import type { GameSession } from "@/types";
+
+const PLAYABLE_GAMES = GAMES.filter((g) => g.id in GAME_ENGINES);
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -13,6 +17,7 @@ function formatDuration(seconds: number): string {
 
 export default function GamesTable() {
   const user = useUser();
+  const [gameId, setGameId] = useState(PLAYABLE_GAMES[0]?.id ?? "asteroids");
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +26,9 @@ export default function GamesTable() {
     if (!user) return;
 
     let cancelled = false;
+    setLoading(true);
 
-    fetchSessionsByNickname(user.name)
+    fetchSessionsByNicknameAndGame(user.name, gameId)
       .then((data) => {
         if (cancelled) return;
         setSessions(data);
@@ -40,7 +46,7 @@ export default function GamesTable() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, gameId]);
 
   if (!user) {
     return <div className="state">INICIÁ SESIÓN PARA VER TU HISTORIAL DE PARTIDAS</div>;
@@ -48,6 +54,17 @@ export default function GamesTable() {
 
   return (
     <div className="data-table">
+      <div className="hall-tabs" style={{ marginBottom: 16 }}>
+        {PLAYABLE_GAMES.map((g) => (
+          <button
+            key={g.id}
+            className={"chip" + (gameId === g.id ? " active" : "")}
+            onClick={() => setGameId(g.id)}
+          >
+            {g.title}
+          </button>
+        ))}
+      </div>
       <div className="th" style={{ gridTemplateColumns: "140px 90px 130px 90px 100px" }}>
         <div>FECHA</div>
         <div>SCORE</div>
@@ -59,7 +76,7 @@ export default function GamesTable() {
       {loading && <div className="state">CARGANDO HISTORIAL…</div>}
       {!loading && error && <div className="state error">ERROR: {error}</div>}
       {!loading && !error && sessions.length === 0 && (
-        <div className="state">TODAVÍA NO JUGASTE NINGUNA PARTIDA DE ASTEROIDS</div>
+        <div className="state">TODAVÍA NO JUGASTE NINGUNA PARTIDA</div>
       )}
       {!loading &&
         !error &&

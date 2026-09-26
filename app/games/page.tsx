@@ -6,7 +6,7 @@ export default function GamesPage() {
       <div className="hall-head">
         <h1>MIS PARTIDAS</h1>
         <p className="pixel" style={{ fontSize: 10 }}>
-          HISTORIAL DE PARTIDAS DE ASTEROIDS
+          HISTORIAL DE PARTIDAS, POR JUEGO
         </p>
       </div>
 
