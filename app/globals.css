@@ -924,6 +924,41 @@ a { color: inherit; text-decoration: none; }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* generic data table (leaderboard, games) — column count set per-instance */
+.data-table {
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  overflow-x: auto;
+}
+.data-table .th, .data-table .tr {
+  display: grid;
+  align-items: center;
+  padding: 12px 18px;
+  font-family: var(--mono);
+  font-size: 13px;
+  gap: 10px;
+  min-width: max-content;
+}
+.data-table .th {
+  font-family: var(--pixel); font-size: 10px;
+  color: var(--ink-faint); letter-spacing: 0.16em;
+  border-bottom: 1px solid var(--line);
+}
+.data-table .tr { border-bottom: 1px solid var(--line-2); opacity: 0; animation: rise 360ms ease-out forwards; }
+.data-table .tr:last-child { border-bottom: none; }
+.data-table .tr.you { background: rgba(245,255,0,0.05); border-left: 3px solid var(--yellow); padding-left: 15px; }
+.data-table .rk { font-family: var(--pixel); font-size: 11px; color: var(--ink-dim); }
+.data-table .pl { color: var(--ink); }
+.data-table .sc { font-family: var(--pixel); font-size: 12px; color: var(--cyan); text-shadow: 0 0 6px rgba(0,245,255,0.4); }
+.data-table .dt { color: var(--ink-faint); }
+.data-table .won { color: var(--green); }
+.data-table .lost { color: var(--magenta); }
+.data-table .state {
+  padding: 60px 18px; text-align: center;
+  color: var(--ink-faint); font-family: var(--mono); font-size: 13px;
+}
+.data-table .state.error { color: var(--magenta); }
+
 @media (max-width: 720px) {
   .hall-table .th, .hall-table .tr { grid-template-columns: 50px 1fr 90px 90px; font-size: 12px; padding: 10px 12px; }
   .av-grid { padding: 0 16px; }

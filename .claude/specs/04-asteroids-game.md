@@ -1,6 +1,6 @@
 # 04 — Asteroids game
 
-**Estado:** aprobado
+**Estado:** Implementado
 **Depende de:** 01-mvp-pantallas-arcade-vault
 **Fecha:** 2026-09-21
 

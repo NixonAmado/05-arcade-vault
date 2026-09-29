@@ -1,6 +1,6 @@
 # 02 — Home page Arcade Vault
 
-**Estado:** Borrador
+**Estado:** Implementado
 **Depende de:** 01-mvp-pantallas-arcade-vault
 **Fecha:** 2026-09-19
 
