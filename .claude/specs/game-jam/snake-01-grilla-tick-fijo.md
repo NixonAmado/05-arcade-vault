@@ -1,6 +1,6 @@
 # snake — VÍBORA (Enfoque A: grilla discreta con tick fijo)
 
-**Estado:** Borrador
+**Estado:** aprobado
 **Depende de:** 05-leaderboard-y-tabla-juegos, 06-caida-tetris
 **Fecha:** 2026-09-30
 **Objetivo:** Agregar VÍBORA (snake clásico) como primer juego real de la categoría ARCADE, con un motor de grilla discreta que avanza a ticks fijos y velocidad creciente por nivel.

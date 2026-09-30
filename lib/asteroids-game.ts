@@ -8,7 +8,8 @@ import {
   rand,
   wrap,
 } from './asteroids-engine';
-import type { GameDefinition } from './game-engine';
+import type { GameDefinition, SkinId } from './game-engine';
+import { ASTEROIDS_SKINS } from './asteroids-skins';
 
 const WIN_LEVEL = 5;
 
@@ -193,14 +194,19 @@ export class AsteroidsGame {
 
 export function drawAsteroids(
   ctx: CanvasRenderingContext2D,
-  state: GameState
+  state: GameState,
+  skin: SkinId = 'clasica'
 ): void {
-  ctx.fillStyle = '#000';
+  const pal = ASTEROIDS_SKINS[skin] ?? ASTEROIDS_SKINS.clasica;
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = pal.background;
   ctx.fillRect(0, 0, 800, 600);
+  ctx.shadowBlur = pal.glow;
 
   state.particles.forEach((p) => {
     const alpha = p.ttl / p.life;
-    ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+    ctx.shadowColor = `rgb(${pal.particleRgb})`;
+    ctx.strokeStyle = `rgba(${pal.particleRgb},${alpha.toFixed(2)})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
@@ -212,7 +218,8 @@ export function drawAsteroids(
     ctx.save();
     ctx.translate(a.x, a.y);
     ctx.rotate(a.rot);
-    ctx.strokeStyle = '#fff';
+    ctx.strokeStyle = pal.asteroid;
+    ctx.shadowColor = pal.asteroid;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = 'round';
     ctx.beginPath();
@@ -224,7 +231,8 @@ export function drawAsteroids(
   });
 
   state.bullets.forEach((b) => {
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = pal.bullet;
+    ctx.shadowColor = pal.bullet;
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -235,7 +243,8 @@ export function drawAsteroids(
       ctx.save();
       ctx.translate(state.ship.x, state.ship.y);
       ctx.rotate(state.ship.angle);
-      ctx.strokeStyle = '#fff';
+      ctx.strokeStyle = pal.ship;
+      ctx.shadowColor = pal.ship;
       ctx.lineWidth = 1.5;
       ctx.lineJoin = 'round';
       ctx.beginPath();
@@ -251,12 +260,14 @@ export function drawAsteroids(
         ctx.moveTo(-8, -4);
         ctx.lineTo(-8 - (Math.random() * 8 + 6), 0);
         ctx.lineTo(-8, 4);
-        ctx.strokeStyle = 'rgba(255, 130, 0, 0.85)';
+        ctx.strokeStyle = pal.thrust;
+        ctx.shadowColor = pal.thrust;
         ctx.stroke();
       }
       ctx.restore();
     }
   }
+  ctx.shadowBlur = 0;
 }
 
 export const asteroidsDefinition: GameDefinition<GameState> = {

@@ -16,6 +16,7 @@ Usa siempre la skill /frontend-design para diseñar interfaces de usuario.
 
 - `game-planner` (`.claude/agents/game-planner.md`): subagente que decide y propone qué juego agregar al catálogo (recomendación + 2 alternativas), sin escribir código ni specs. Mantiene memoria propia en `.claude/agent-memory/game-planner/MEMORY.md` y registra cada sugerencia en `references/game-suggestion-todo.md`. Invocar antes de correr `/spec` para un juego nuevo.
 - `game-jam` (`.claude/agents/game-jam.md`): subagente que, dado un tema, diseña un juego y escribe 2 specs alternativas (enfoques distintos al mismo problema) en estado "Borrador" dentro de `.claude/specs/game-jam/`. No escribe código ni marca specs como "Aprobado"; el usuario elige un enfoque y luego sigue el flujo `/spec` + `/spec-impl` normal.
+- `skin-designer` (`.claude/agents/skin-designer.md`): subagente que diseña **e implementa directamente** un sistema de skins de color (neon, retro, clásica por defecto) para un juego ya implementado del catálogo — paletas concretas, `SkinPalette` inyectado en `draw()`, selector de cara al usuario y persistencia en `localStorage`. Verifica primero que el juego no tenga ya esta integración. **Excepción explícita** (decisión del usuario) al flujo spec-driven: modifica código sin pasar por `/spec` ni `/spec-impl`; no toca `lib/game-engines.ts` ni otros juegos.
 
 ## Flujo spec-driven
 
