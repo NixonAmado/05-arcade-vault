@@ -37,6 +37,7 @@ export default function GamePlayer({ id }: { id: string }) {
   const router = useRouter();
   const game = GAMES.find((g) => g.id === id);
   const isAsteroids = game?.id === "asteroids";
+  const hasSkins = game?.id === "asteroids" || game?.id === "vibora";
   const engineDef = game ? GAME_ENGINES[game.id] : undefined;
 
   const [score, setScore] = useState(0);
@@ -243,7 +244,7 @@ export default function GamePlayer({ id }: { id: string }) {
         </div>
       </div>
 
-      {isAsteroids && (
+      {hasSkins && (
         <div
           role="radiogroup"
           aria-label="Skin"

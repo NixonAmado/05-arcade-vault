@@ -6,6 +6,7 @@ Este archivo lista los juegos de `lib/games.ts` que tienen un motor real registr
 |---|---|---|---|---|
 | `asteroids` | ASTEROIDS | SHOOTER | `lib/asteroids-game.ts` (`asteroidsDefinition`) | `.claude/specs/04-asteroids-game.md` |
 | `caida` | CAÍDA (Tetris) | PUZZLE | `lib/tetris-game.ts` (`tetrisDefinition`) | `.claude/specs/06-caida-tetris.md` |
+| `vibora` | VÍBORA (Snake) | ARCADE | `lib/snake-game.ts` (`snakeDefinition`) | `.claude/specs/game-jam/snake-01-grilla-tick-fijo.md` |
 
 ## Cómo se determinan
 
@@ -15,6 +16,6 @@ Este archivo lista los juegos de `lib/games.ts` que tienen un motor real registr
 
 ## Resto del catálogo (`lib/games.ts`)
 
-Todas las demás entradas (id ≠ `asteroids`/`caida`) son mocks de catálogo sin motor: datos de portada/categoría para completar la grilla, pero sin `GameDefinition` registrada ni posibilidad real de jugar.
+Todas las demás entradas (id ≠ `asteroids`/`caida`/`vibora`) son mocks de catálogo sin motor: datos de portada/categoría para completar la grilla, pero sin `GameDefinition` registrada ni posibilidad real de jugar.
 
 Para agregar un nuevo juego a esta lista, usar la skill `add-arcade-game` (`.claude/skills/add-arcade-game/SKILL.md`) y actualizar este archivo al terminar.

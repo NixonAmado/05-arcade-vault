@@ -14,6 +14,17 @@ export interface Game {
 
 export const GAMES: Game[] = [
   {
+    id: "vibora",
+    title: "VÍBORA",
+    short: "Come, crece y no choques contigo misma.",
+    long: "Una serpiente de neón recorre la grilla en busca de comida. Cada bocado la alarga y, cada 5, el ritmo se acelera. Las paredes y tu propio cuerpo son letales.",
+    cat: "ARCADE",
+    cover: "cover-snake",
+    color: "green",
+    best: 0,
+    plays: "0",
+  },
+  {
     id: "caida",
     title: "CAÍDA",
     short: "Encaja las piezas antes de que el techo te aplaste.",
