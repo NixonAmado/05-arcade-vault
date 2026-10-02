@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
 import { useUser } from "@/lib/useUser";
 import type { GameState as AsteroidsState } from "@/lib/asteroids-game";
-import type { GameEngine } from "@/lib/game-engine";
+import type { GameEngine, SkinId } from "@/lib/game-engine";
+import { SKIN_IDS, SKIN_LABELS } from "@/lib/asteroids-skins";
 import { GAME_ENGINES } from "@/lib/game-engines";
 import { insertGameSession } from "@/lib/gameSessions";
 
@@ -17,10 +18,26 @@ function saveScore(entry: { game: string; score: number; name: string }) {
   } catch {}
 }
 
+const skinListeners = new Set<() => void>();
+function subscribeSkin(cb: () => void) {
+  skinListeners.add(cb);
+  return () => {
+    skinListeners.delete(cb);
+  };
+}
+function readSkin(key: string): SkinId {
+  try {
+    const v = localStorage.getItem(key);
+    if (v && (SKIN_IDS as string[]).includes(v)) return v as SkinId;
+  } catch {}
+  return "clasica";
+}
+
 export default function GamePlayer({ id }: { id: string }) {
   const router = useRouter();
   const game = GAMES.find((g) => g.id === id);
   const isAsteroids = game?.id === "asteroids";
+  const hasSkins = game?.id === "asteroids" || game?.id === "vibora";
   const engineDef = game ? GAME_ENGINES[game.id] : undefined;
 
   const [score, setScore] = useState(0);
@@ -44,6 +61,25 @@ export default function GamePlayer({ id }: { id: string }) {
   const [sessionStatus, setSessionStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+
+  const skinKey = `skin-${id}`;
+  const skin = useSyncExternalStore(
+    subscribeSkin,
+    () => readSkin(skinKey),
+    () => "clasica" as SkinId
+  );
+  const skinRef = useRef<SkinId>(skin);
+  useEffect(() => {
+    skinRef.current = skin;
+  }, [skin]);
+
+  const chooseSkin = (s: SkinId) => {
+    skinRef.current = s;
+    try {
+      localStorage.setItem(skinKey, s);
+    } catch {}
+    skinListeners.forEach((l) => l());
+  };
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -94,7 +130,7 @@ export default function GamePlayer({ id }: { id: string }) {
       const state = engineRef.current?.getState();
       if (state !== undefined) {
         setEngineState(state);
-        engineDef.draw(ctx, state);
+        engineDef.draw(ctx, state, skinRef.current);
         if (engineDef.isGameOver(state) && !overRef.current) {
           overRef.current = true;
           setOver(true);
@@ -109,7 +145,7 @@ export default function GamePlayer({ id }: { id: string }) {
       window.removeEventListener("keyup", handleKeyUp);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [engineDef]);
 
   if (!game) notFound();
@@ -207,6 +243,35 @@ export default function GamePlayer({ id }: { id: string }) {
           </button>
         </div>
       </div>
+
+      {hasSkins && (
+        <div
+          role="radiogroup"
+          aria-label="Skin"
+          style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}
+        >
+          <span
+            className="mono"
+            style={{ fontSize: 11, color: "var(--ink-dim)", letterSpacing: "0.16em" }}
+          >
+            SKIN
+          </span>
+          {SKIN_IDS.map((s) => (
+            <button
+              key={s}
+              role="radio"
+              aria-checked={skin === s}
+              className={skin === s ? "btn yellow" : "btn ghost"}
+              onClick={() => chooseSkin(s)}
+              onKeyDown={(e) => {
+                if (e.code === "Space") e.stopPropagation();
+              }}
+            >
+              {SKIN_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="crt">
         <div className="crt-screen">
