@@ -1334,3 +1334,58 @@ a.lb-link { display: inline-block; }
   .contact-form.shake { animation: none; }
   .highlight { transition: none; }
 }
+
+/* ===== controles táctiles / mobile (spec 07) ===== */
+.touch-controls {
+  position: absolute; inset: 0; z-index: 4;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 10px;
+  pointer-events: none;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.touch-group { display: flex; gap: 8px; align-items: flex-end; }
+.touch-btn {
+  pointer-events: auto;
+  min-width: 56px; min-height: 56px; padding: 0 10px;
+  border-radius: 14px;
+  border: 1px solid var(--cyan);
+  background: rgba(0,245,255,0.14);
+  color: var(--cyan);
+  font-family: var(--pixel); font-size: 12px;
+  text-shadow: 0 0 6px rgba(0,245,255,0.6);
+  box-shadow: 0 0 10px rgba(0,245,255,0.25), inset 0 0 8px rgba(0,245,255,0.15);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+}
+.touch-btn:active { background: rgba(0,245,255,0.35); transform: scale(0.96); }
+.touch-btn:disabled { opacity: 0.35; }
+.touch-group-right .touch-btn { border-color: var(--magenta); color: var(--magenta); background: rgba(255,0,110,0.14); text-shadow: 0 0 6px rgba(255,0,110,0.6); box-shadow: 0 0 10px rgba(255,0,110,0.25), inset 0 0 8px rgba(255,0,110,0.15); }
+.touch-group-right .touch-btn:active { background: rgba(255,0,110,0.35); }
+
+.skin-compact { display: none; }
+
+@media (max-width: 768px) {
+  .av-player { margin: 12px auto; padding: 0 12px 40px; overscroll-behavior: contain; }
+  .crt { padding: 10px; border-radius: 18px; }
+  .crt-screen { aspect-ratio: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .crt-screen canvas { object-fit: contain; touch-action: none; }
+  .crt-bottom { display: none; }
+
+  .player-hud { padding: 10px 12px; gap: 10px; }
+  .hud-stats { gap: 14px !important; width: 100%; justify-content: space-between; }
+  .hud-stat .v { font-size: 13px; }
+  .hud-actions { width: 100%; }
+  .hud-actions .btn { flex: 1; min-height: 44px; }
+
+  .skin-compact { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .skin-compact select {
+    flex: 1; min-height: 44px; padding: 0 10px;
+    background: var(--bg-2); color: var(--ink);
+    border: 1px solid var(--line); font-family: var(--mono);
+  }
+
+  .modal-bd { align-items: flex-start; overflow-y: auto; padding: 12px; }
+  .modal { padding: 20px; max-height: calc(100dvh - 24px); overflow-y: auto; margin: auto; }
+  .modal .input-row { flex-direction: column; }
+  .modal .input-row input, .modal .input-row .btn, .modal .actions .btn { min-height: 44px; }
+}

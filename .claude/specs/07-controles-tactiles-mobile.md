@@ -1,6 +1,6 @@
 # 07 — Controles táctiles / mobile
 
-**Estado:** Borrador
+**Estado:** aprobado
 **Depende de:** 04-asteroids-game, 06-caida-tetris (y el motor VÍBORA en `lib/snake-game.ts`, spec de game-jam `snake-01-grilla-tick-fijo`)
 **Fecha:** 2026-10-02
 **Objetivo:** Hacer jugables en celular los tres juegos con motor (Asteroids, Caída, Víbora) mediante controles en pantalla que emulan teclas, visibles solo en viewport ≤ 768px, con el layout del player adaptado a mobile.

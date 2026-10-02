@@ -9,6 +9,10 @@ import type { GameEngine, SkinId } from "@/lib/game-engine";
 import { SKIN_IDS, SKIN_LABELS } from "@/lib/asteroids-skins";
 import { GAME_ENGINES } from "@/lib/game-engines";
 import { insertGameSession } from "@/lib/gameSessions";
+import { useIsMobile } from "@/lib/useIsMobile";
+import { TOUCH_CONTROLS } from "@/lib/touch-controls";
+import { vibrate } from "@/lib/haptics";
+import TouchControls from "@/components/TouchControls";
 
 function saveScore(entry: { game: string; score: number; name: string }) {
   try {
@@ -39,6 +43,10 @@ export default function GamePlayer({ id }: { id: string }) {
   const isAsteroids = game?.id === "asteroids";
   const hasSkins = game?.id === "asteroids" || game?.id === "vibora";
   const engineDef = game ? GAME_ENGINES[game.id] : undefined;
+  const isMobile = useIsMobile();
+  const touchLayout = game ? TOUCH_CONTROLS[game.id] : undefined;
+  const showTouch = isMobile && !!engineDef && !!touchLayout;
+  const screenRef = useRef<HTMLDivElement>(null);
 
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
@@ -87,6 +95,37 @@ export default function GamePlayer({ id }: { id: string }) {
   useEffect(() => {
     overRef.current = over;
   }, [over]);
+
+  // Pausa automática al perder visibilidad o rotar el dispositivo en plena partida.
+  useEffect(() => {
+    if (!engineDef) return;
+    const autoPause = () => {
+      if (!overRef.current) setPaused(true);
+    };
+    const onVisibility = () => {
+      if (document.hidden) autoPause();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("orientationchange", autoPause);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("orientationchange", autoPause);
+    };
+  }, [engineDef]);
+
+  // Evita scroll / pull-to-refresh al arrastrar sobre el área de juego.
+  useEffect(() => {
+    const el = screenRef.current;
+    if (!el || !showTouch) return;
+    const block = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener("touchmove", block, { passive: false });
+    return () => el.removeEventListener("touchmove", block);
+  }, [showTouch]);
+
+  // Háptica al terminar la partida.
+  useEffect(() => {
+    if (over && engineDef) vibrate([80, 40, 80]);
+  }, [over, engineDef]);
 
   useEffect(() => {
     if (engineDef || over || paused) return;
@@ -206,7 +245,7 @@ export default function GamePlayer({ id }: { id: string }) {
   return (
     <div className="av-player fade-in">
       <div className="player-hud">
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div className="hud-stats" style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           <div className="hud-stat">
             <div className="l">Jugador</div>
             <div className="v" style={{ color: "var(--ink)" }}>
@@ -244,7 +283,30 @@ export default function GamePlayer({ id }: { id: string }) {
         </div>
       </div>
 
-      {hasSkins && (
+      {hasSkins && isMobile && (
+        <div className="skin-compact">
+          <label
+            className="mono"
+            htmlFor="skin-select"
+            style={{ fontSize: 11, color: "var(--ink-dim)", letterSpacing: "0.16em" }}
+          >
+            SKIN
+          </label>
+          <select
+            id="skin-select"
+            value={skin}
+            onChange={(e) => chooseSkin(e.target.value as SkinId)}
+          >
+            {SKIN_IDS.map((s) => (
+              <option key={s} value={s}>
+                {SKIN_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {hasSkins && !isMobile && (
         <div
           role="radiogroup"
           aria-label="Skin"
@@ -274,7 +336,15 @@ export default function GamePlayer({ id }: { id: string }) {
       )}
 
       <div className="crt">
-        <div className="crt-screen">
+        <div
+          ref={screenRef}
+          className="crt-screen"
+          style={
+            isMobile && engineDef
+              ? { aspectRatio: `${engineDef.width} / ${engineDef.height}` }
+              : undefined
+          }
+        >
           {engineDef ? (
             <div className="game-arena">
               <canvas
@@ -292,6 +362,14 @@ export default function GamePlayer({ id }: { id: string }) {
               <div className="enemy e3"></div>
               <div className="player-ship"></div>
             </div>
+          )}
+          {showTouch && touchLayout && (
+            <TouchControls
+              layout={touchLayout}
+              disabled={paused || over}
+              onDown={(code) => engineRef.current?.setKeyDown(code)}
+              onUp={(code) => engineRef.current?.setKeyUp(code)}
+            />
           )}
           {paused && (
             <div
@@ -348,6 +426,11 @@ export default function GamePlayer({ id }: { id: string }) {
                     setNameInput(e.target.value.toUpperCase().slice(0, 10))
                   }
                   placeholder="TUS INICIALES"
+                  onFocus={(e) => {
+                    const el = e.currentTarget;
+                    // espera a que aparezca el teclado virtual
+                    setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
+                  }}
                 />
                 <button
                   className="btn yellow"
