@@ -1,38 +1,71 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
+import { supabase } from "@/lib/supabase";
+import { fetchProfileUsername } from "@/lib/profiles";
 
-export interface StoredUser {
-  name: string;
+export interface AppUser {
+  id: string; // auth.users.id
+  name: string; // profiles.username
 }
 
-const KEY = "av_user";
+interface AuthState {
+  user: AppUser | null;
+  loading: boolean;
+}
+
+// Store de módulo: una sola suscripción a Supabase Auth compartida por todos los consumidores.
+const SERVER_STATE: AuthState = { user: null, loading: true };
+let state: AuthState = SERVER_STATE;
+let started = false;
+const listeners = new Set<() => void>();
+
+function setState(next: AuthState) {
+  state = next;
+  listeners.forEach((l) => l());
+}
+
+// Usuario sin profile (OAuth que aún no eligió username) se trata como sin sesión.
+async function load(userId: string | null) {
+  if (!userId) return setState({ user: null, loading: false });
+  try {
+    const name = await fetchProfileUsername(userId);
+    setState({ user: name ? { id: userId, name } : null, loading: false });
+  } catch {
+    setState({ user: null, loading: false });
+  }
+}
+
+function start() {
+  if (started) return;
+  started = true;
+  supabase.auth.onAuthStateChange((_event, session) => {
+    // No hacer await de llamadas a supabase dentro del callback (puede bloquear auth).
+    setTimeout(() => void load(session?.user.id ?? null), 0);
+  });
+}
 
 function subscribe(cb: () => void) {
-  window.addEventListener("storage", cb);
-  window.addEventListener("av-user-change", cb);
+  start();
+  listeners.add(cb);
   return () => {
-    window.removeEventListener("storage", cb);
-    window.removeEventListener("av-user-change", cb);
+    listeners.delete(cb);
   };
 }
 
-const getSnapshot = () => localStorage.getItem(KEY);
-const getServerSnapshot = () => null;
+const getSnapshot = () => state;
+const getServerSnapshot = () => SERVER_STATE;
 
-export function useUser(): StoredUser | null {
-  const raw = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  return useMemo(() => {
-    try {
-      return raw ? (JSON.parse(raw) as StoredUser) : null;
-    } catch {
-      return null;
-    }
-  }, [raw]);
+export function useAuthState(): AuthState {
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-export function setStoredUser(user: StoredUser | null) {
-  if (user) localStorage.setItem(KEY, JSON.stringify(user));
-  else localStorage.removeItem(KEY);
-  window.dispatchEvent(new Event("av-user-change"));
+export function useUser(): AppUser | null {
+  return useAuthState().user;
+}
+
+// Vuelve a leer el profile (tras crear o renombrar el username).
+export async function refreshUser() {
+  const { data } = await supabase.auth.getSession();
+  await load(data.session?.user.id ?? null);
 }

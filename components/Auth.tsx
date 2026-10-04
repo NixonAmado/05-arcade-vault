@@ -2,24 +2,141 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { setStoredUser } from "@/lib/useUser";
+import { supabase } from "@/lib/supabase";
+import { safeNext } from "@/lib/auth-redirect";
+import { useUsernameCheck } from "@/lib/useUsernameCheck";
+import {
+  normalizeUsername,
+  validateEmail,
+  validatePassword,
+  validatePasswordConfirm,
+} from "@/lib/validation";
+import AuthField from "@/components/AuthField";
 
-export default function Auth() {
+type Tab = "in" | "up";
+type Provider = "google" | "github";
+
+interface Props {
+  next?: string;
+  error?: string;
+}
+
+function loginErrorMessage(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login credentials")) return "Correo o contraseña incorrectos.";
+  if (m.includes("email not confirmed")) return "Confirma tu correo antes de entrar.";
+  return "No se pudo iniciar sesión. Intenta de nuevo.";
+}
+
+function signUpErrorMessage(message: string): string {
+  const m = message.toLowerCase();
+  // El trigger de profiles falla por el índice único de username.
+  if (m.includes("database error")) return "Ese usuario ya está en uso.";
+  if (m.includes("rate limit")) return "Demasiados intentos. Espera un momento.";
+  if (m.includes("password")) return "La contraseña no cumple los requisitos.";
+  return "No se pudo crear la cuenta. Intenta de nuevo.";
+}
+
+export default function Auth({ next, error: initialError }: Props) {
   const router = useRouter();
-  const [tab, setTab] = useState<"in" | "up">("in");
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
+  const nextPath = safeNext(next);
+  const [tab, setTab] = useState<Tab>("in");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(
+    initialError ? "No se pudo iniciar sesión. Intenta de nuevo." : null,
+  );
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
-  const login = (name: string | null) => {
-    setStoredUser(name ? { name } : null);
-    router.push("/biblioteca");
+  const register = tab === "up";
+  const usernameCheck = useUsernameCheck(register ? username : "");
+  const emailError = validateEmail(email);
+  const passwordError = validatePassword(password, register ? "register" : "login");
+  const confirmError = register ? validatePasswordConfirm(password, confirm) : null;
+
+  const valid = register
+    ? usernameCheck.status === "available" && !emailError && !passwordError && !confirmError
+    : !emailError && !passwordError;
+
+  const callbackUrl = () =>
+    `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    setServerError(null);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login((user || "PLAYER1").toUpperCase().slice(0, 10));
+    if (!valid || busy) return;
+    setBusy(true);
+    setServerError(null);
+
+    if (register) {
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { username: normalizeUsername(username) },
+          emailRedirectTo: callbackUrl(),
+        },
+      });
+      setBusy(false);
+      if (error) return setServerError(signUpErrorMessage(error.message));
+      setSentTo(email.trim());
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      setBusy(false);
+      return setServerError(loginErrorMessage(error.message));
+    }
+    router.replace(nextPath);
+    router.refresh();
   };
+
+  const oauth = async (provider: Provider) => {
+    setServerError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: callbackUrl() },
+    });
+    if (error) setServerError("No se pudo iniciar sesión con " + provider + ".");
+  };
+
+  if (sentTo) {
+    return (
+      <div className="av-auth-wrap fade-in">
+        <div className="auth-card">
+          <div className="auth-header">
+            <div className="mark"></div>
+            <h2 className="neon-cyan">REVISA TU CORREO</h2>
+          </div>
+          <div className="auth-notice ok">
+            Te enviamos un enlace de confirmación a <b>{sentTo}</b>. Ábrelo para activar tu
+            cuenta y entrar al Vault.
+          </div>
+          <button
+            className="btn ghost"
+            style={{ width: "100%" }}
+            onClick={() => {
+              setSentTo(null);
+              switchTab("in");
+            }}
+          >
+            VOLVER A INICIAR SESIÓN
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="av-auth-wrap fade-in">
@@ -41,63 +158,89 @@ export default function Auth() {
         </div>
 
         <div className="auth-tabs">
-          <button className={tab === "in" ? "on" : ""} onClick={() => setTab("in")}>
+          <button type="button" className={tab === "in" ? "on" : ""} onClick={() => switchTab("in")}>
             INICIAR SESIÓN
           </button>
-          <button className={tab === "up" ? "on" : ""} onClick={() => setTab("up")}>
+          <button type="button" className={tab === "up" ? "on" : ""} onClick={() => switchTab("up")}>
             CREAR CUENTA
           </button>
         </div>
 
-        <form onSubmit={submit}>
-          <div className="field">
-            <label>Usuario</label>
-            <input
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              placeholder="px_kai"
-            />
+        {serverError && (
+          <div className="auth-notice" role="alert">
+            {serverError}
           </div>
-          {tab === "up" && (
-            <div className="field slide-in">
-              <label>Correo electrónico</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="jugador@vault.gg"
-              />
-            </div>
-          )}
-          <div className="field">
-            <label>Contraseña</label>
-            <input
-              type="password"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
+        )}
 
-          <button className="btn lg" type="submit" style={{ width: "100%", marginTop: 8 }}>
-            {tab === "in" ? "ENTRAR AL VAULT" : "CREAR Y JUGAR"}
+        <form onSubmit={submit} noValidate>
+          {register && (
+            <AuthField
+              label="Usuario"
+              value={username}
+              onChange={(v) => setUsername(normalizeUsername(v))}
+              error={usernameCheck.error}
+              ok={usernameCheck.status === "available" ? "Usuario disponible." : null}
+              hint={usernameCheck.status === "checking" ? "Comprobando…" : "3-10 caracteres: A-Z, 0-9, _"}
+              placeholder="PX_KAI"
+              autoComplete="username"
+            />
+          )}
+          <AuthField
+            label="Correo electrónico"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            error={emailError}
+            placeholder="jugador@vault.gg"
+            autoComplete="email"
+          />
+          <AuthField
+            label="Contraseña"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            error={passwordError}
+            hint={register ? "Mínimo 8 caracteres" : null}
+            placeholder="••••••••"
+            autoComplete={register ? "new-password" : "current-password"}
+          />
+          {register && (
+            <AuthField
+              label="Repetir contraseña"
+              type="password"
+              value={confirm}
+              onChange={setConfirm}
+              error={confirmError}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          )}
+
+          <button
+            className="btn lg"
+            type="submit"
+            disabled={!valid || busy}
+            style={{ width: "100%", marginTop: 8 }}
+          >
+            {busy ? "…" : register ? "CREAR CUENTA" : "ENTRAR AL VAULT"}
           </button>
         </form>
 
         <button
           className="btn ghost"
+          type="button"
           style={{ width: "100%", marginTop: 10 }}
-          onClick={() => login(null)}
+          onClick={() => router.push("/biblioteca")}
         >
           JUGAR COMO INVITADO
         </button>
 
         <div className="auth-divider">O CONTINÚA CON</div>
         <div className="social">
-          <button className="btn ghost" type="button">
+          <button className="btn ghost" type="button" onClick={() => oauth("google")}>
             ◆ GOOGLE
           </button>
-          <button className="btn ghost" type="button">
+          <button className="btn ghost" type="button" onClick={() => oauth("github")}>
             ▣ GITHUB
           </button>
         </div>

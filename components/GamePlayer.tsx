@@ -15,14 +15,6 @@ import { TOUCH_CONTROLS } from "@/lib/touch-controls";
 import { vibrate } from "@/lib/haptics";
 import TouchControls from "@/components/TouchControls";
 
-function saveScore(entry: { game: string; score: number; name: string }) {
-  try {
-    const all = JSON.parse(localStorage.getItem("av_scores") || "[]");
-    all.push({ ...entry, at: Date.now() });
-    localStorage.setItem("av_scores", JSON.stringify(all));
-  } catch {}
-}
-
 const skinListeners = new Set<() => void>();
 function subscribeSkin(cb: () => void) {
   skinListeners.add(cb);
@@ -55,10 +47,8 @@ export default function GamePlayer({ id }: { id: string }) {
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const user = useUser();
-  const [nameInput, setNameInput] = useState<string | null>(null);
-  const name = nameInput ?? user?.name ?? "INVITADO";
+  const name = user?.name ?? "INVITADO";
   const level = 1 + Math.floor(score / 2500);
-  const [saved, setSaved] = useState(false);
 
   const [engineState, setEngineState] = useState<unknown>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -229,8 +219,9 @@ export default function GamePlayer({ id }: { id: string }) {
     : level;
 
   // Al terminar una partida con motor registrado, se guarda automáticamente en Supabase.
+  // Solo usuarios logueados guardan; el invitado ve un CTA en el modal.
   useEffect(() => {
-    if (!engineDef || !over || sessionSavedRef.current || engineState === null) return;
+    if (!engineDef || !over || !user || sessionSavedRef.current || engineState === null) return;
     sessionSavedRef.current = true;
     setSessionStatus("saving");
 
@@ -240,7 +231,7 @@ export default function GamePlayer({ id }: { id: string }) {
 
     insertGameSession({
       game_id: game.id,
-      nickname: name,
+      nickname: user.name,
       score: engineDef.getScore(engineState),
       wave_completed: engineDef.getProgress(engineState),
       won: engineDef.hasWon(engineState),
@@ -257,7 +248,6 @@ export default function GamePlayer({ id }: { id: string }) {
     setLives(3);
     setPaused(false);
     setOver(false);
-    setSaved(false);
     if (engineDef) {
       engineRef.current?.reset();
       startTimeRef.current = Date.now();
@@ -435,40 +425,32 @@ export default function GamePlayer({ id }: { id: string }) {
             <h2>FIN DEL JUEGO</h2>
             <div className="final-label">PUNTUACIÓN FINAL</div>
             <div className="final">{dScore.toLocaleString("es-ES")}</div>
-            {engineDef && (
-              <div className="toast-saved" style={{ marginBottom: 12 }}>
-                {sessionStatus === "saving" && "▸ GUARDANDO PARTIDA EN SUPABASE…"}
-                {sessionStatus === "saved" && "▸ PARTIDA GUARDADA EN SUPABASE_"}
-                {sessionStatus === "error" &&
-                  "▸ ERROR AL GUARDAR LA PARTIDA. INTENTÁ DE NUEVO MÁS TARDE."}
-              </div>
+            {engineDef && user && (
+              <>
+                <div className="final-label">JUGADOR · {user.name}</div>
+                <div className="toast-saved" style={{ marginBottom: 12 }}>
+                  {sessionStatus === "saving" && "▸ GUARDANDO PARTIDA EN SUPABASE…"}
+                  {sessionStatus === "saved" && "▸ PARTIDA GUARDADA EN SUPABASE_"}
+                  {sessionStatus === "error" &&
+                    "▸ ERROR AL GUARDAR LA PARTIDA. INTENTA DE NUEVO MÁS TARDE."}
+                </div>
+              </>
             )}
-            {!saved ? (
-              <div className="input-row">
-                <input
-                  value={name}
-                  onChange={(e) =>
-                    setNameInput(e.target.value.toUpperCase().slice(0, 10))
-                  }
-                  placeholder="TUS INICIALES"
-                  onFocus={(e) => {
-                    const el = e.currentTarget;
-                    // espera a que aparezca el teclado virtual
-                    setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
-                  }}
-                />
+            {engineDef && !user && (
+              <div style={{ marginBottom: 12 }}>
+                <div className="toast-saved" style={{ marginBottom: 10 }}>
+                  ▸ JUEGAS COMO INVITADO: ESTA PARTIDA NO SE GUARDA
+                </div>
                 <button
                   className="btn yellow"
-                  onClick={() => {
-                    saveScore({ game: game.id, score: dScore, name });
-                    setSaved(true);
-                  }}
+                  style={{ width: "100%" }}
+                  onClick={() =>
+                    router.push(`/login?next=${encodeURIComponent(`/juego/${id}/jugar`)}`)
+                  }
                 >
-                  GUARDAR PUNTUACIÓN
+                  INICIA SESIÓN PARA GUARDAR
                 </button>
               </div>
-            ) : (
-              <div className="toast-saved">▸ PUNTUACIÓN GUARDADA_</div>
             )}
             <div className="actions">
               <button className="btn" onClick={restart}>

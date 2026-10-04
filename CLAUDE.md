@@ -29,7 +29,7 @@ Registrados en `lib/game-engines.ts` (`GAME_ENGINES`): `asteroids`, `caida` (Tet
 
 Este proyecto no escribe código sin una spec en `.claude/specs/NN-slug.md`. Las skills de usuario `/spec` y `/spec-impl` (invocación explícita, no se disparan solas) manejan todo el ciclo: numeración, plantilla, preguntas de aclaración, creación de rama `spec-NN-slug`, y ejecución paso a paso con pausas para revisar el diff (sin commits automáticos). `/spec-impl` solo avanza si la spec está en estado "Aprobado".
 
-Specs existentes: 01-mvp-pantallas, 02-home-page, 03-about-page, 04-asteroids-game, 04-supabase-integracion, 05-leaderboard-y-tabla-juegos, 06-caida-tetris, 07-controles-tactiles-mobile. Specs de game-jam en `.claude/specs/game-jam/`: `snake-01-grilla-tick-fijo` (implementada como VÍBORA), `snake-02-simulacion-continua`, `frogger` (implementada).
+Specs existentes: 01-mvp-pantallas, 02-home-page, 03-about-page, 04-asteroids-game, 04-supabase-integracion, 05-leaderboard-y-tabla-juegos, 06-caida-tetris, 07-controles-tactiles-mobile, 08-autenticacion-supabase. Specs de game-jam en `.claude/specs/game-jam/`: `snake-01-grilla-tick-fijo` (implementada como VÍBORA), `snake-02-simulacion-continua`, `frogger` (implementada).
 
 ## Hooks
 
@@ -44,13 +44,24 @@ Hook `PostToolUse` (`Edit|Write`) con `.claude/hooks/eslint-fix.mjs` existe en e
 - **Supabase** (`@supabase/ssr`, `@supabase/supabase-js`): base de datos, auth y backend del leaderboard/game_sessions.
 - **Resend** (`resend`): envío de emails.
 
+## Autenticación (spec 08)
+
+Supabase Auth con sesión en cookies (`@supabase/ssr`): email+contraseña con verificación de email, Google y GitHub (configurados en los dashboards de Supabase/Google/GitHub, no en el repo).
+
+- `profiles` (`id` = `auth.users.id`, `username` único case-insensitive, `^[A-Z0-9_]{3,10}$`, en mayúsculas). Registro por email: un trigger en `auth.users` crea el profile desde `user_metadata.username`. OAuth: sin profile hasta elegir username en `/bienvenida`.
+- `game_sessions.user_id` (`not null`, default `auth.uid()`). Insert solo `authenticated` con `user_id = auth.uid()` y `nickname = profiles.username` (RLS). Renombrar el username actualiza `nickname` por trigger. Select público.
+- **Invitado:** puede jugar pero no guarda score (el modal de fin de juego ofrece iniciar sesión).
+- Clientes: `lib/supabase.ts` (browser, export `supabase`) y `lib/supabase-server.ts` (`createClient()` para route handlers/Server Components). `proxy.ts` refresca la sesión (`getClaims`), protege `/salon`, `/perfil` y `/bienvenida` (redirige a `/login?next=`) y manda a `/bienvenida` a quien tenga sesión sin profile. `app/auth/callback/route.ts` canjea el `code` (email/OAuth).
+- Cliente: `lib/useUser.ts` (`useUser()` → `{ id, name } | null`, `useAuthState()`, `refreshUser()`); `lib/validation.ts` (validadores puros, la validación va en el front antes de llamar a Supabase); `lib/profiles.ts` + `lib/useUsernameCheck.ts` (disponibilidad con debounce); `lib/auth-redirect.ts` (`safeNext`, anti open redirect).
+- Migraciones versionadas en `supabase/migrations/` (también aplicadas por MCP).
+
 ## Arquitectura
 
 Proyecto Next.js (App Router):
 
-- Rutas en `app/`: `/` (home), `acerca`, `biblioteca`, `games`, `juego/[id]`, `leaderboard`, `login`, `salon`
-- `components/` — UI (`GamePlayer`, `GameDetail`, `TouchControls`, leaderboards, `Library`, `Auth`, etc.)
-- `lib/` — motores (`*-game.ts`, `game-engine.ts`, `game-engines.ts`), catálogo (`games.ts`), Supabase (`supabase.ts`, `gameSessions.ts`, `useLeaderboard.ts`, `useUser.ts`)
+- Rutas en `app/`: `/` (home), `acerca`, `biblioteca`, `games`, `juego/[id]`, `leaderboard`, `login`, `salon`, `perfil`, `bienvenida`, `auth/callback` (route handler); `proxy.ts` en la raíz
+- `components/` — UI (`GamePlayer`, `GameDetail`, `TouchControls`, leaderboards, `Library`, `Auth`, `Welcome`, `Profile`, `AuthField`, etc.)
+- `lib/` — motores (`*-game.ts`, `game-engine.ts`, `game-engines.ts`), catálogo (`games.ts`), Supabase (`supabase.ts`, `supabase-server.ts`, `gameSessions.ts`, `useLeaderboard.ts`, `useUser.ts`, `profiles.ts`, `validation.ts`)
 - `app/globals.css` — estilos globales (Tailwind v4 vía `@tailwindcss/postcss`)
 - Alias de import `@/*` apunta a la raíz del repo (ver `tsconfig.json`)
 - TypeScript en modo `strict`

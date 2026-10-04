@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { setStoredUser, useUser } from "@/lib/useUser";
+import { supabase } from "@/lib/supabase";
+import { useUser } from "@/lib/useUser";
 
 export default function Nav() {
   const pathname = usePathname();
@@ -29,8 +30,8 @@ export default function Nav() {
     router.push(href);
   };
 
-  const handleSignOut = () => {
-    setStoredUser(null);
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
     router.push("/biblioteca");
   };
 
@@ -75,9 +76,14 @@ export default function Nav() {
           <span>CRÉDITOS · 03</span>
         </div>
         {user ? (
-          <button className="btn ghost auth-btn" onClick={handleSignOut}>
-            {user.name} ▾
-          </button>
+          <>
+            <button className="btn ghost auth-btn" onClick={() => go("/perfil")}>
+              {user.name}
+            </button>
+            <button className="btn ghost" onClick={handleSignOut}>
+              Salir
+            </button>
+          </>
         ) : (
           <button className="btn auth-btn" onClick={() => go("/login")}>
             Iniciar Sesión
@@ -143,12 +149,24 @@ export default function Nav() {
           Acerca de
         </Link>
         <Link
-          href="/login"
+          href={user ? "/perfil" : "/login"}
           className={isActive("login") ? "active" : ""}
           onClick={() => setOpen(false)}
         >
-          {user ? "Cuenta" : "Iniciar Sesión"}
+          {user ? `Perfil · ${user.name}` : "Iniciar Sesión"}
         </Link>
+        {user && (
+          <button
+            className="btn ghost"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              setOpen(false);
+              handleSignOut();
+            }}
+          >
+            Cerrar sesión
+          </button>
+        )}
         <div style={{ flex: 1 }}></div>
         <div
           className="pixel"

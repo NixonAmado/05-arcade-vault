@@ -27,13 +27,13 @@ export async function fetchAllSessions(): Promise<GameSession[]> {
   return data ?? [];
 }
 
-export async function fetchSessionsByNickname(
-  nickname: string
+export async function fetchSessionsByUserId(
+  userId: string
 ): Promise<GameSession[]> {
   const { data, error } = await supabase
     .from("game_sessions")
     .select("*")
-    .eq("nickname", nickname)
+    .eq("user_id", userId)
     .order("played_at", { ascending: false });
 
   if (error) throw error;
@@ -53,14 +53,14 @@ export async function fetchSessionsByGame(
   return data ?? [];
 }
 
-export async function fetchSessionsByNicknameAndGame(
-  nickname: string,
+export async function fetchSessionsByUserIdAndGame(
+  userId: string,
   gameId: string
 ): Promise<GameSession[]> {
   const { data, error } = await supabase
     .from("game_sessions")
     .select("*")
-    .eq("nickname", nickname)
+    .eq("user_id", userId)
     .eq("game_id", gameId)
     .order("played_at", { ascending: false });
 

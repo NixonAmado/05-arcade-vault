@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchSessionsByNicknameAndGame } from "@/lib/gameSessions";
+import { fetchSessionsByUserIdAndGame } from "@/lib/gameSessions";
 import { useUser } from "@/lib/useUser";
 import { GAMES } from "@/lib/games";
 import { GAME_ENGINES } from "@/lib/game-engines";
@@ -22,7 +22,7 @@ export default function LeaderboardPersonal() {
     let cancelled = false;
     setLoading(true);
 
-    fetchSessionsByNicknameAndGame(user.name, gameId)
+    fetchSessionsByUserIdAndGame(user.id, gameId)
       .then((data) => {
         if (cancelled) return;
         setSessions(data);
