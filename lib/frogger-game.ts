@@ -404,7 +404,7 @@ const HUD_H = 16;
 
 function setGlow(ctx: CanvasRenderingContext2D, color: string, blur: number): void {
   ctx.shadowColor = color;
-  ctx.shadowBlur = blur;
+  ctx.shadowBlur = Math.min(blur, 6); // blur alto es muy caro en canvas
 }
 
 function drawFrogShape(

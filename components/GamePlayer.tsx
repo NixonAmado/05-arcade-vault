@@ -145,6 +145,12 @@ export default function GamePlayer({ id }: { id: string }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Nitidez en pantallas HiDPI (tope 2x para no encarecer el relleno).
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = engineDef.width * dpr;
+    canvas.height = engineDef.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     const engine = engineDef.create();
     engineRef.current = engine;
     startTimeRef.current = Date.now();
@@ -161,17 +167,32 @@ export default function GamePlayer({ id }: { id: string }) {
     window.addEventListener("keyup", handleKeyUp);
 
     let lastTime: number | null = null;
+    let hudSig = "";
+    let lastSkin = skinRef.current;
+    let wasRunning = true;
     const loop = (ts: number) => {
       const dt = lastTime === null ? 0 : Math.min((ts - lastTime) / 1000, 0.05);
       lastTime = ts;
 
-      if (!pausedRef.current && !overRef.current) {
+      const running = !pausedRef.current && !overRef.current;
+      if (running) {
         engineRef.current?.update(dt);
       }
       const state = engineRef.current?.getState();
       if (state !== undefined) {
-        setEngineState(state);
-        engineDef.draw(ctx, state, skinRef.current);
+        // Re-render de React solo si cambia el HUD (no 60 veces/seg).
+        const lives = (state as { lives?: number }).lives;
+        const sig = `${engineDef.getScore(state)}|${engineDef.getProgress(state)}|${lives}|${engineDef.isGameOver(state)}`;
+        if (sig !== hudSig) {
+          hudSig = sig;
+          setEngineState(state);
+        }
+        // En pausa/fin sin cambios, no redibuja.
+        if (running || wasRunning || lastSkin !== skinRef.current) {
+          engineDef.draw(ctx, state, skinRef.current);
+          lastSkin = skinRef.current;
+        }
+        wasRunning = running;
         if (engineDef.isGameOver(state) && !overRef.current) {
           overRef.current = true;
           setOver(true);

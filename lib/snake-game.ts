@@ -208,14 +208,21 @@ export function drawSnake(
   ctx.fillStyle = p.foodInner;
   ctx.fillRect(state.food.x * CELL + 7, state.food.y * CELL + 7, CELL - 14, CELL - 14);
 
-  // Cuerpo y cabeza
-  ctx.shadowColor = p.bodyGlowColor;
-  ctx.shadowBlur = p.bodyGlow;
-  state.body.forEach((c, i) => {
-    ctx.fillStyle = i === 0 ? p.head : p.body;
-    ctx.fillRect(c.x * CELL + 1, c.y * CELL + 1, CELL - 2, CELL - 2);
-  });
+  // Cuerpo sin glow (barato) y glow solo en la cabeza
   ctx.shadowBlur = 0;
+  ctx.fillStyle = p.body;
+  for (let i = 1; i < state.body.length; i++) {
+    const c = state.body[i];
+    ctx.fillRect(c.x * CELL + 1, c.y * CELL + 1, CELL - 2, CELL - 2);
+  }
+  const h = state.body[0];
+  if (h) {
+    ctx.shadowColor = p.bodyGlowColor;
+    ctx.shadowBlur = p.bodyGlow;
+    ctx.fillStyle = p.head;
+    ctx.fillRect(h.x * CELL + 1, h.y * CELL + 1, CELL - 2, CELL - 2);
+    ctx.shadowBlur = 0;
+  }
 
   if (state.gameOver) {
     ctx.fillStyle = p.overlay;
