@@ -29,7 +29,7 @@ Registrados en `lib/game-engines.ts` (`GAME_ENGINES`): `asteroids`, `caida` (Tet
 
 Este proyecto no escribe código sin una spec en `.claude/specs/NN-slug.md`. Las skills de usuario `/spec` y `/spec-impl` (invocación explícita, no se disparan solas) manejan todo el ciclo: numeración, plantilla, preguntas de aclaración, creación de rama `spec-NN-slug`, y ejecución paso a paso con pausas para revisar el diff (sin commits automáticos). `/spec-impl` solo avanza si la spec está en estado "Aprobado".
 
-Specs existentes: 01-mvp-pantallas, 02-home-page, 03-about-page, 04-asteroids-game, 04-supabase-integracion, 05-leaderboard-y-tabla-juegos, 06-caida-tetris, 07-controles-tactiles-mobile, 08-autenticacion-supabase. Specs de game-jam en `.claude/specs/game-jam/`: `snake-01-grilla-tick-fijo` (implementada como VÍBORA), `snake-02-simulacion-continua`, `frogger` (implementada).
+Specs existentes: 01-mvp-pantallas, 02-home-page, 03-about-page, 04-asteroids-game, 04-supabase-integracion, 05-leaderboard-y-tabla-juegos, 06-caida-tetris, 07-controles-tactiles-mobile, 08-autenticacion-supabase, 09-pantalla-completa-y-canvas-viewport (canvas ajustado al alto del viewport; botón/tecla F de pantalla completa vía `lib/useFullscreen.ts`, fallback CSS en iPhone). Specs de game-jam en `.claude/specs/game-jam/`: `snake-01-grilla-tick-fijo` (implementada como VÍBORA), `snake-02-simulacion-continua`, `frogger` (implementada).
 
 ## Hooks
 
