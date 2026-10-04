@@ -117,18 +117,14 @@ export class AsteroidsGame {
   update(dt: number): void {
     if (this.gameState.state === 'gameover') {
       this.gameState.particles.forEach((p) => p.update(dt));
-      this.gameState.particles = this.gameState.particles.filter(
-        (p) => !p.dead
-      );
+      compactAlive(this.gameState.particles);
       return;
     }
 
     if (this.gameState.state === 'dead') {
       this.gameState.deadTimer -= dt;
       this.gameState.particles.forEach((p) => p.update(dt));
-      this.gameState.particles = this.gameState.particles.filter(
-        (p) => !p.dead
-      );
+      compactAlive(this.gameState.particles);
       this.gameState.asteroids.forEach((a) => a.update(dt, this.W, this.H));
       if (this.gameState.deadTimer <= 0) {
         this.gameState.state = 'playing';
@@ -147,8 +143,8 @@ export class AsteroidsGame {
     this.gameState.asteroids.forEach((a) => a.update(dt, this.W, this.H));
     this.gameState.particles.forEach((p) => p.update(dt));
 
-    this.gameState.bullets = this.gameState.bullets.filter((b) => !b.dead);
-    this.gameState.particles = this.gameState.particles.filter((p) => !p.dead);
+    compactAlive(this.gameState.bullets);
+    compactAlive(this.gameState.particles);
 
     // Bullet vs asteroid
     const newAsteroids: Asteroid[] = [];
@@ -166,7 +162,7 @@ export class AsteroidsGame {
     this.gameState.asteroids = this.gameState.asteroids
       .filter((a) => !a.dead)
       .concat(newAsteroids);
-    this.gameState.bullets = this.gameState.bullets.filter((b) => !b.dead);
+    compactAlive(this.gameState.bullets);
 
     // Ship vs asteroid
     if (this.gameState.ship.invincible <= 0) {
@@ -192,6 +188,13 @@ export class AsteroidsGame {
   }
 }
 
+/** Elimina muertos in-place (sin asignar arrays nuevos por frame). */
+function compactAlive<T extends { dead: boolean }>(arr: T[]): void {
+  let j = 0;
+  for (let i = 0; i < arr.length; i++) if (!arr[i].dead) arr[j++] = arr[i];
+  arr.length = j;
+}
+
 export function drawAsteroids(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -201,11 +204,10 @@ export function drawAsteroids(
   ctx.shadowBlur = 0;
   ctx.fillStyle = pal.background;
   ctx.fillRect(0, 0, 800, 600);
-  ctx.shadowBlur = pal.glow;
 
+  // Partículas sin glow: son muchas y se desvanecen
   state.particles.forEach((p) => {
     const alpha = p.ttl / p.life;
-    ctx.shadowColor = `rgb(${pal.particleRgb})`;
     ctx.strokeStyle = `rgba(${pal.particleRgb},${alpha.toFixed(2)})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -214,6 +216,7 @@ export function drawAsteroids(
     ctx.stroke();
   });
 
+  ctx.shadowBlur = pal.glow;
   state.asteroids.forEach((a) => {
     ctx.save();
     ctx.translate(a.x, a.y);

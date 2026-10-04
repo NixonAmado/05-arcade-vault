@@ -5,10 +5,15 @@ import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
 import { useUser } from "@/lib/useUser";
 import type { GameState as AsteroidsState } from "@/lib/asteroids-game";
+import type { FroggerState } from "@/lib/frogger-game";
 import type { GameEngine, SkinId } from "@/lib/game-engine";
 import { SKIN_IDS, SKIN_LABELS } from "@/lib/asteroids-skins";
 import { GAME_ENGINES } from "@/lib/game-engines";
 import { insertGameSession } from "@/lib/gameSessions";
+import { useIsMobile } from "@/lib/useIsMobile";
+import { TOUCH_CONTROLS } from "@/lib/touch-controls";
+import { vibrate } from "@/lib/haptics";
+import TouchControls from "@/components/TouchControls";
 
 function saveScore(entry: { game: string; score: number; name: string }) {
   try {
@@ -37,8 +42,13 @@ export default function GamePlayer({ id }: { id: string }) {
   const router = useRouter();
   const game = GAMES.find((g) => g.id === id);
   const isAsteroids = game?.id === "asteroids";
-  const hasSkins = game?.id === "asteroids" || game?.id === "vibora";
+  const isFrogger = game?.id === "frogger";
+  const hasSkins = game?.id === "asteroids" || game?.id === "vibora" || game?.id === "frogger";
   const engineDef = game ? GAME_ENGINES[game.id] : undefined;
+  const isMobile = useIsMobile();
+  const touchLayout = game ? TOUCH_CONTROLS[game.id] : undefined;
+  const showTouch = isMobile && !!engineDef && !!touchLayout;
+  const screenRef = useRef<HTMLDivElement>(null);
 
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
@@ -88,6 +98,37 @@ export default function GamePlayer({ id }: { id: string }) {
     overRef.current = over;
   }, [over]);
 
+  // Pausa automática al perder visibilidad o rotar el dispositivo en plena partida.
+  useEffect(() => {
+    if (!engineDef) return;
+    const autoPause = () => {
+      if (!overRef.current) setPaused(true);
+    };
+    const onVisibility = () => {
+      if (document.hidden) autoPause();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("orientationchange", autoPause);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("orientationchange", autoPause);
+    };
+  }, [engineDef]);
+
+  // Evita scroll / pull-to-refresh al arrastrar sobre el área de juego.
+  useEffect(() => {
+    const el = screenRef.current;
+    if (!el || !showTouch) return;
+    const block = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener("touchmove", block, { passive: false });
+    return () => el.removeEventListener("touchmove", block);
+  }, [showTouch]);
+
+  // Háptica al terminar la partida.
+  useEffect(() => {
+    if (over && engineDef) vibrate([80, 40, 80]);
+  }, [over, engineDef]);
+
   useEffect(() => {
     if (engineDef || over || paused) return;
     const t = setInterval(
@@ -103,6 +144,12 @@ export default function GamePlayer({ id }: { id: string }) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Nitidez en pantallas HiDPI (tope 2x para no encarecer el relleno).
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = engineDef.width * dpr;
+    canvas.height = engineDef.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const engine = engineDef.create();
     engineRef.current = engine;
@@ -120,17 +167,32 @@ export default function GamePlayer({ id }: { id: string }) {
     window.addEventListener("keyup", handleKeyUp);
 
     let lastTime: number | null = null;
+    let hudSig = "";
+    let lastSkin = skinRef.current;
+    let wasRunning = true;
     const loop = (ts: number) => {
       const dt = lastTime === null ? 0 : Math.min((ts - lastTime) / 1000, 0.05);
       lastTime = ts;
 
-      if (!pausedRef.current && !overRef.current) {
+      const running = !pausedRef.current && !overRef.current;
+      if (running) {
         engineRef.current?.update(dt);
       }
       const state = engineRef.current?.getState();
       if (state !== undefined) {
-        setEngineState(state);
-        engineDef.draw(ctx, state, skinRef.current);
+        // Re-render de React solo si cambia el HUD (no 60 veces/seg).
+        const lives = (state as { lives?: number }).lives;
+        const sig = `${engineDef.getScore(state)}|${engineDef.getProgress(state)}|${lives}|${engineDef.isGameOver(state)}`;
+        if (sig !== hudSig) {
+          hudSig = sig;
+          setEngineState(state);
+        }
+        // En pausa/fin sin cambios, no redibuja.
+        if (running || wasRunning || lastSkin !== skinRef.current) {
+          engineDef.draw(ctx, state, skinRef.current);
+          lastSkin = skinRef.current;
+        }
+        wasRunning = running;
         if (engineDef.isGameOver(state) && !overRef.current) {
           overRef.current = true;
           setOver(true);
@@ -157,7 +219,9 @@ export default function GamePlayer({ id }: { id: string }) {
     : score;
   const dLives = isAsteroids
     ? (engineState as AsteroidsState | null)?.lives ?? 3
-    : lives;
+    : isFrogger
+      ? (engineState as FroggerState | null)?.lives ?? 3
+      : lives;
   const dLevel = engineDef
     ? engineState !== null
       ? engineDef.getProgress(engineState)
@@ -206,7 +270,7 @@ export default function GamePlayer({ id }: { id: string }) {
   return (
     <div className="av-player fade-in">
       <div className="player-hud">
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+        <div className="hud-stats" style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           <div className="hud-stat">
             <div className="l">Jugador</div>
             <div className="v" style={{ color: "var(--ink)" }}>
@@ -217,7 +281,7 @@ export default function GamePlayer({ id }: { id: string }) {
             <div className="l">Puntuación</div>
             <div className="v">{dScore.toLocaleString("es-ES")}</div>
           </div>
-          {isAsteroids && (
+          {(isAsteroids || isFrogger) && (
             <div className="hud-stat lives">
               <div className="l">Vidas</div>
               <div className="v">{"♥ ".repeat(dLives).trim() || "—"}</div>
@@ -244,7 +308,30 @@ export default function GamePlayer({ id }: { id: string }) {
         </div>
       </div>
 
-      {hasSkins && (
+      {hasSkins && isMobile && (
+        <div className="skin-compact">
+          <label
+            className="mono"
+            htmlFor="skin-select"
+            style={{ fontSize: 11, color: "var(--ink-dim)", letterSpacing: "0.16em" }}
+          >
+            SKIN
+          </label>
+          <select
+            id="skin-select"
+            value={skin}
+            onChange={(e) => chooseSkin(e.target.value as SkinId)}
+          >
+            {SKIN_IDS.map((s) => (
+              <option key={s} value={s}>
+                {SKIN_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {hasSkins && !isMobile && (
         <div
           role="radiogroup"
           aria-label="Skin"
@@ -274,7 +361,15 @@ export default function GamePlayer({ id }: { id: string }) {
       )}
 
       <div className="crt">
-        <div className="crt-screen">
+        <div
+          ref={screenRef}
+          className="crt-screen"
+          style={
+            isMobile && engineDef
+              ? { aspectRatio: `${engineDef.width} / ${engineDef.height}` }
+              : undefined
+          }
+        >
           {engineDef ? (
             <div className="game-arena">
               <canvas
@@ -292,6 +387,14 @@ export default function GamePlayer({ id }: { id: string }) {
               <div className="enemy e3"></div>
               <div className="player-ship"></div>
             </div>
+          )}
+          {showTouch && touchLayout && (
+            <TouchControls
+              layout={touchLayout}
+              disabled={paused || over}
+              onDown={(code) => engineRef.current?.setKeyDown(code)}
+              onUp={(code) => engineRef.current?.setKeyUp(code)}
+            />
           )}
           {paused && (
             <div
@@ -348,6 +451,11 @@ export default function GamePlayer({ id }: { id: string }) {
                     setNameInput(e.target.value.toUpperCase().slice(0, 10))
                   }
                   placeholder="TUS INICIALES"
+                  onFocus={(e) => {
+                    const el = e.currentTarget;
+                    // espera a que aparezca el teclado virtual
+                    setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
+                  }}
                 />
                 <button
                   className="btn yellow"
