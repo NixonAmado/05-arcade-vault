@@ -43,4 +43,15 @@ export const TOUCH_CONTROLS: Record<string, TouchLayout> = {
       { id: "down", label: "↓", code: "ArrowDown" },
     ],
   },
+  // Frogger: salto de 1 celda por pulsación (buffer de 1 dirección), sin repeat.
+  frogger: {
+    left: [
+      { id: "left", label: "←", code: "ArrowLeft" },
+      { id: "right", label: "→", code: "ArrowRight" },
+    ],
+    right: [
+      { id: "up", label: "↑", code: "ArrowUp" },
+      { id: "down", label: "↓", code: "ArrowDown" },
+    ],
+  },
 };

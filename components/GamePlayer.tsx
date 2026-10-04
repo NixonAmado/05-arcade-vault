@@ -5,6 +5,7 @@ import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
 import { useUser } from "@/lib/useUser";
 import type { GameState as AsteroidsState } from "@/lib/asteroids-game";
+import type { FroggerState } from "@/lib/frogger-game";
 import type { GameEngine, SkinId } from "@/lib/game-engine";
 import { SKIN_IDS, SKIN_LABELS } from "@/lib/asteroids-skins";
 import { GAME_ENGINES } from "@/lib/game-engines";
@@ -41,7 +42,8 @@ export default function GamePlayer({ id }: { id: string }) {
   const router = useRouter();
   const game = GAMES.find((g) => g.id === id);
   const isAsteroids = game?.id === "asteroids";
-  const hasSkins = game?.id === "asteroids" || game?.id === "vibora";
+  const isFrogger = game?.id === "frogger";
+  const hasSkins = game?.id === "asteroids" || game?.id === "vibora" || game?.id === "frogger";
   const engineDef = game ? GAME_ENGINES[game.id] : undefined;
   const isMobile = useIsMobile();
   const touchLayout = game ? TOUCH_CONTROLS[game.id] : undefined;
@@ -196,7 +198,9 @@ export default function GamePlayer({ id }: { id: string }) {
     : score;
   const dLives = isAsteroids
     ? (engineState as AsteroidsState | null)?.lives ?? 3
-    : lives;
+    : isFrogger
+      ? (engineState as FroggerState | null)?.lives ?? 3
+      : lives;
   const dLevel = engineDef
     ? engineState !== null
       ? engineDef.getProgress(engineState)
@@ -256,7 +260,7 @@ export default function GamePlayer({ id }: { id: string }) {
             <div className="l">Puntuación</div>
             <div className="v">{dScore.toLocaleString("es-ES")}</div>
           </div>
-          {isAsteroids && (
+          {(isAsteroids || isFrogger) && (
             <div className="hud-stat lives">
               <div className="l">Vidas</div>
               <div className="v">{"♥ ".repeat(dLives).trim() || "—"}</div>

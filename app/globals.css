@@ -438,6 +438,17 @@ a { color: inherit; text-decoration: none; }
   filter: drop-shadow(0 0 6px rgba(0,255,136,0.6));
 }
 
+.cover-frogger { background: linear-gradient(180deg, #003a2a 0 20%, #001a3a 20% 55%, #1a1a24 55% 90%, #003a2a 90%); }
+.cover-frogger::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 50% 78%, var(--green) 0 9px, transparent 10px),
+    linear-gradient(90deg, #7a4a1a 0 56px, transparent 56px) 15% 38%/200px 10px no-repeat,
+    linear-gradient(90deg, var(--magenta) 0 28px, transparent 28px) 65% 68%/200px 10px no-repeat;
+  filter: drop-shadow(0 0 6px rgba(0,255,136,0.6));
+}
+
 .cover-glot { background: radial-gradient(circle at 50% 50%, #1a002a, #0a0a18); }
 .cover-glot::after {
   content: "";
