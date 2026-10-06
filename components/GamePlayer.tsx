@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { GAMES } from "@/lib/games";
 import { useUser } from "@/lib/useUser";
@@ -13,15 +13,8 @@ import { insertGameSession } from "@/lib/gameSessions";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { TOUCH_CONTROLS } from "@/lib/touch-controls";
 import { vibrate } from "@/lib/haptics";
+import { useFullscreen } from "@/lib/useFullscreen";
 import TouchControls from "@/components/TouchControls";
-
-function saveScore(entry: { game: string; score: number; name: string }) {
-  try {
-    const all = JSON.parse(localStorage.getItem("av_scores") || "[]");
-    all.push({ ...entry, at: Date.now() });
-    localStorage.setItem("av_scores", JSON.stringify(all));
-  } catch {}
-}
 
 const skinListeners = new Set<() => void>();
 function subscribeSkin(cb: () => void) {
@@ -49,18 +42,19 @@ export default function GamePlayer({ id }: { id: string }) {
   const touchLayout = game ? TOUCH_CONTROLS[game.id] : undefined;
   const showTouch = isMobile && !!engineDef && !!touchLayout;
   const screenRef = useRef<HTMLDivElement>(null);
+  const crtRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, cssFallback, toggle: toggleFullscreen } = useFullscreen(crtRef);
 
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const user = useUser();
-  const [nameInput, setNameInput] = useState<string | null>(null);
-  const name = nameInput ?? user?.name ?? "INVITADO";
+  const name = user?.name ?? "INVITADO";
   const level = 1 + Math.floor(score / 2500);
-  const [saved, setSaved] = useState(false);
 
   const [engineState, setEngineState] = useState<unknown>(null);
+  const [, setHudTick] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine<unknown> | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -186,6 +180,9 @@ export default function GamePlayer({ id }: { id: string }) {
         if (sig !== hudSig) {
           hudSig = sig;
           setEngineState(state);
+          // Los motores mutan el mismo objeto de estado: sin esto React descarta el
+          // setState (misma referencia) y el HUD (vidas, puntos) queda congelado.
+          setHudTick((t) => t + 1);
         }
         // En pausa/fin sin cambios, no redibuja.
         if (running || wasRunning || lastSkin !== skinRef.current) {
@@ -229,8 +226,9 @@ export default function GamePlayer({ id }: { id: string }) {
     : level;
 
   // Al terminar una partida con motor registrado, se guarda automáticamente en Supabase.
+  // Solo usuarios logueados guardan; el invitado ve un CTA en el modal.
   useEffect(() => {
-    if (!engineDef || !over || sessionSavedRef.current || engineState === null) return;
+    if (!engineDef || !over || !user || sessionSavedRef.current || engineState === null) return;
     sessionSavedRef.current = true;
     setSessionStatus("saving");
 
@@ -240,7 +238,7 @@ export default function GamePlayer({ id }: { id: string }) {
 
     insertGameSession({
       game_id: game.id,
-      nickname: name,
+      nickname: user.name,
       score: engineDef.getScore(engineState),
       wave_completed: engineDef.getProgress(engineState),
       won: engineDef.hasWon(engineState),
@@ -257,7 +255,6 @@ export default function GamePlayer({ id }: { id: string }) {
     setLives(3);
     setPaused(false);
     setOver(false);
-    setSaved(false);
     if (engineDef) {
       engineRef.current?.reset();
       startTimeRef.current = Date.now();
@@ -266,6 +263,52 @@ export default function GamePlayer({ id }: { id: string }) {
       setSessionStatus("idle");
     }
   };
+
+  // En pantalla completa real solo se ve el subárbol de `.crt`, así que el modal vive ahí.
+  const gameOverModal = over ? (
+    <div className="modal-bd" onClick={() => {}}>
+      <div className="modal">
+        <h2>FIN DEL JUEGO</h2>
+        <div className="final-label">PUNTUACIÓN FINAL</div>
+        <div className="final">{dScore.toLocaleString("es-ES")}</div>
+        {engineDef && user && (
+          <>
+            <div className="final-label">JUGADOR · {user.name}</div>
+            <div className="toast-saved" style={{ marginBottom: 12 }}>
+              {sessionStatus === "saving" && "▸ GUARDANDO PARTIDA EN SUPABASE…"}
+              {sessionStatus === "saved" && "▸ PARTIDA GUARDADA EN SUPABASE_"}
+              {sessionStatus === "error" &&
+                "▸ ERROR AL GUARDAR LA PARTIDA. INTENTA DE NUEVO MÁS TARDE."}
+            </div>
+          </>
+        )}
+        {engineDef && !user && (
+          <div style={{ marginBottom: 12 }}>
+            <div className="toast-saved" style={{ marginBottom: 10 }}>
+              ▸ JUEGAS COMO INVITADO: ESTA PARTIDA NO SE GUARDA
+            </div>
+            <button
+              className="btn yellow"
+              style={{ width: "100%" }}
+              onClick={() =>
+                router.push(`/login?next=${encodeURIComponent(`/juego/${id}/jugar`)}`)
+              }
+            >
+              INICIA SESIÓN PARA GUARDAR
+            </button>
+          </div>
+        )}
+        <div className="actions">
+          <button className="btn" onClick={restart}>
+            JUGAR DE NUEVO
+          </button>
+          <button className="btn magenta" onClick={() => router.push("/biblioteca")}>
+            VOLVER AL VAULT
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="av-player fade-in">
@@ -296,6 +339,19 @@ export default function GamePlayer({ id }: { id: string }) {
           <button className="btn yellow" onClick={() => setPaused((p) => !p)}>
             {paused ? "REANUDAR" : "PAUSA"}
           </button>
+          {engineDef && (
+            <button
+              className="btn"
+              title="Pantalla completa (F)"
+              onClick={(e) => {
+                toggleFullscreen();
+                e.currentTarget.blur();
+              }}
+            >
+              {isFullscreen ? "SALIR PANTALLA" : "PANTALLA COMPLETA"}
+              {!isMobile && <kbd className="kbd-hint">F</kbd>}
+            </button>
+          )}
           <button className="btn magenta" onClick={endGame}>
             FIN
           </button>
@@ -360,13 +416,58 @@ export default function GamePlayer({ id }: { id: string }) {
         </div>
       )}
 
-      <div className="crt">
+      <div
+        ref={crtRef}
+        className={`crt${isFullscreen ? " is-fullscreen" : ""}${cssFallback ? " is-fs-css" : ""}`}
+      >
+        {isFullscreen && (
+          <div className="fs-hud">
+            <div className="fs-stats mono">
+              <span>{name}</span>
+              <span>
+                PTS <b>{dScore.toLocaleString("es-ES")}</b>
+              </span>
+              {(isAsteroids || isFrogger) && (
+                <span>
+                  <b>{"♥ ".repeat(dLives).trim() || "—"}</b>
+                </span>
+              )}
+              <span>
+                NIV <b>{String(dLevel).padStart(2, "0")}</b>
+              </span>
+            </div>
+            <div className="fs-actions">
+              <button
+                className="btn yellow"
+                onClick={(e) => {
+                  setPaused((p) => !p);
+                  e.currentTarget.blur();
+                }}
+              >
+                {paused ? "REANUDAR" : "PAUSA"}
+              </button>
+              <button
+                className="btn ghost"
+                onClick={(e) => {
+                  toggleFullscreen();
+                  e.currentTarget.blur();
+                }}
+              >
+                SALIR
+                {!isMobile && <kbd className="kbd-hint">F / ESC</kbd>}
+              </button>
+            </div>
+          </div>
+        )}
         <div
           ref={screenRef}
           className="crt-screen"
           style={
-            isMobile && engineDef
-              ? { aspectRatio: `${engineDef.width} / ${engineDef.height}` }
+            engineDef
+              ? ({
+                  aspectRatio: `${engineDef.width} / ${engineDef.height}`,
+                  "--ar": engineDef.width / engineDef.height,
+                } as CSSProperties)
               : undefined
           }
         >
@@ -427,63 +528,10 @@ export default function GamePlayer({ id }: { id: string }) {
           </span>
           <span>CARGA · 1MB</span>
         </div>
+        {isFullscreen && gameOverModal}
       </div>
 
-      {over && (
-        <div className="modal-bd" onClick={() => {}}>
-          <div className="modal">
-            <h2>FIN DEL JUEGO</h2>
-            <div className="final-label">PUNTUACIÓN FINAL</div>
-            <div className="final">{dScore.toLocaleString("es-ES")}</div>
-            {engineDef && (
-              <div className="toast-saved" style={{ marginBottom: 12 }}>
-                {sessionStatus === "saving" && "▸ GUARDANDO PARTIDA EN SUPABASE…"}
-                {sessionStatus === "saved" && "▸ PARTIDA GUARDADA EN SUPABASE_"}
-                {sessionStatus === "error" &&
-                  "▸ ERROR AL GUARDAR LA PARTIDA. INTENTÁ DE NUEVO MÁS TARDE."}
-              </div>
-            )}
-            {!saved ? (
-              <div className="input-row">
-                <input
-                  value={name}
-                  onChange={(e) =>
-                    setNameInput(e.target.value.toUpperCase().slice(0, 10))
-                  }
-                  placeholder="TUS INICIALES"
-                  onFocus={(e) => {
-                    const el = e.currentTarget;
-                    // espera a que aparezca el teclado virtual
-                    setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
-                  }}
-                />
-                <button
-                  className="btn yellow"
-                  onClick={() => {
-                    saveScore({ game: game.id, score: dScore, name });
-                    setSaved(true);
-                  }}
-                >
-                  GUARDAR PUNTUACIÓN
-                </button>
-              </div>
-            ) : (
-              <div className="toast-saved">▸ PUNTUACIÓN GUARDADA_</div>
-            )}
-            <div className="actions">
-              <button className="btn" onClick={restart}>
-                JUGAR DE NUEVO
-              </button>
-              <button
-                className="btn magenta"
-                onClick={() => router.push("/biblioteca")}
-              >
-                VOLVER AL VAULT
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {!isFullscreen && gameOverModal}
     </div>
   );
 }

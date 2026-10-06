@@ -5,6 +5,8 @@
 **Date:** 2026-09-22
 **Objective:** Implementar leaderboard (global y personal) y tabla de historial de partidas de Asteroids, persistiendo directamente en Supabase (tabla `game_sessions` con RLS).
 
+> **Nota (SPEC 08):** la inserción abierta sin autenticación y el nickname en `localStorage` (`av_user`) quedaron superados por `08-autenticacion-supabase`: `game_sessions` tiene `user_id`, el insert exige usuario autenticado y las partidas personales se filtran por `user_id`. El texto de abajo describe el estado original de esta spec.
+
 ## Scope
 
 **In:**

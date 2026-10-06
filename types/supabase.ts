@@ -22,6 +22,7 @@ export type Database = {
           nickname: string
           played_at: string
           score: number
+          user_id: string
           wave_completed: number
           won: boolean
         }
@@ -32,6 +33,7 @@ export type Database = {
           nickname: string
           played_at?: string
           score: number
+          user_id?: string
           wave_completed: number
           won?: boolean
         }
@@ -42,8 +44,27 @@ export type Database = {
           nickname?: string
           played_at?: string
           score?: number
+          user_id?: string
           wave_completed?: number
           won?: boolean
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          username?: string
         }
         Relationships: []
       }

@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 // Acceso literal a process.env.NEXT_PUBLIC_*: Next solo las inyecta en el bundle así.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,4 +13,5 @@ if (!publishableKey) {
   );
 }
 
-export const supabase = createClient(url, publishableKey);
+// Cliente de navegador: guarda la sesión en cookies (compartidas con proxy y server).
+export const supabase = createBrowserClient(url, publishableKey);
