@@ -28,13 +28,24 @@ function loginErrorMessage(message: string): string {
   return "No se pudo iniciar sesión. Intenta de nuevo.";
 }
 
-function signUpErrorMessage(message: string): string {
-  const m = message.toLowerCase();
-  // El trigger de profiles falla por el índice único de username.
-  if (m.includes("database error")) return "Ese usuario ya está en uso.";
-  if (m.includes("rate limit")) return "Demasiados intentos. Espera un momento.";
-  if (m.includes("password")) return "La contraseña no cumple los requisitos.";
-  return "No se pudo crear la cuenta. Intenta de nuevo.";
+const SIGNUP_FALLBACK_ERROR = "No se pudo crear la cuenta. Intenta de nuevo.";
+
+// El registro pasa por /api/signup (rate limit por IP); el servidor devuelve el mensaje en español.
+async function signUpRequest(
+  body: { username: string; email: string; password: string; next: string },
+): Promise<string | null> {
+  try {
+    const res = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return typeof data?.error === "string" ? data.error : SIGNUP_FALLBACK_ERROR;
+  } catch {
+    return SIGNUP_FALLBACK_ERROR;
+  }
 }
 
 export default function Auth({ next, error: initialError }: Props) {
@@ -76,16 +87,14 @@ export default function Auth({ next, error: initialError }: Props) {
     setServerError(null);
 
     if (register) {
-      const { error } = await supabase.auth.signUp({
+      const error = await signUpRequest({
+        username: normalizeUsername(username),
         email: email.trim(),
         password,
-        options: {
-          data: { username: normalizeUsername(username) },
-          emailRedirectTo: callbackUrl(),
-        },
+        next: nextPath,
       });
       setBusy(false);
-      if (error) return setServerError(signUpErrorMessage(error.message));
+      if (error) return setServerError(error);
       setSentTo(email.trim());
       return;
     }

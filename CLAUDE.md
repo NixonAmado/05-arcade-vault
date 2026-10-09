@@ -21,6 +21,8 @@ Usa siempre la skill /frontend-design para diseñar interfaces de usuario.
 
 - `mobile-porter` (`.claude/agents/mobile-porter.md`): subagente que revisa la parte mobile de un juego (controles táctiles, layout, pausa, háptica, modal) según la spec `07-controles-tactiles-mobile`; registra el layout en `lib/touch-controls.ts` y reporta brechas. Usar al agregar un juego nuevo.
 
+- `security-auditor` (`.claude/agents/security-auditor.md`): subagente de solo lectura que audita seguridad (RLS/policies/grants/advisors vía MCP supabase, fugas de datos, headers, `proxy.ts`, `/api/signup`, secretos, open redirect) contra las specs 08 y 10 y `references/security/security-checklist.md`. Reporta hallazgos por severidad; no modifica código ni BD (los arreglos van por `/spec`). Usar tras migraciones o cambios en auth/proxy/api y antes de deploy.
+
 ## Juegos con motor
 
 Registrados en `lib/game-engines.ts` (`GAME_ENGINES`): `asteroids`, `caida` (Tetris), `vibora` (Snake), `frogger`. Lista detallada en `references/implemented-games.md` (actualizarla al agregar uno). Skins por juego en `lib/*-skins.ts`; táctil en `lib/touch-controls.ts`, `components/TouchControls.tsx`, `lib/haptics.ts`, `lib/useIsMobile.ts`.
@@ -54,6 +56,19 @@ Supabase Auth con sesión en cookies (`@supabase/ssr`): email+contraseña con ve
 - Clientes: `lib/supabase.ts` (browser, export `supabase`) y `lib/supabase-server.ts` (`createClient()` para route handlers/Server Components). `proxy.ts` refresca la sesión (`getClaims`), protege `/salon`, `/perfil` y `/bienvenida` (redirige a `/login?next=`) y manda a `/bienvenida` a quien tenga sesión sin profile. `app/auth/callback/route.ts` canjea el `code` (email/OAuth).
 - Cliente: `lib/useUser.ts` (`useUser()` → `{ id, name } | null`, `useAuthState()`, `refreshUser()`); `lib/validation.ts` (validadores puros, la validación va en el front antes de llamar a Supabase); `lib/profiles.ts` + `lib/useUsernameCheck.ts` (disponibilidad con debounce); `lib/auth-redirect.ts` (`safeNext`, anti open redirect).
 - Migraciones versionadas en `supabase/migrations/` (también aplicadas por MCP).
+
+## Seguridad (spec 10)
+
+- **Headers** en `next.config.ts` (`headers()`): nosniff, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` (`fullscreen=(self)`), HSTS. Sin CSP (spec futura).
+- **Signup con rate limit:** el registro por email va por `app/api/signup/route.ts` (5/hora por IP). La IP se hashea (SHA-256 + `SIGNUP_IP_SALT`) y el contador vive en `signup_attempts`, accesible solo vía el RPC `check_signup_rate` (`security definer`, solo `service_role`). Es best-effort: el límite real es Auth > Rate Limits del dashboard de Supabase.
+- **Env solo servidor:** `SUPABASE_SERVICE_ROLE_KEY` y `SIGNUP_IP_SALT` (sin prefijo `NEXT_PUBLIC_`, ver `.env.example`). Nunca importarlas desde código cliente.
+- **RLS:** `game_sessions`, `profiles` y `signup_attempts` con RLS activo. Tabla nueva = RLS activo (`signup_attempts` no tiene policies a propósito: solo vía RPC); correr `get_advisors` tras cada migración. Único WARN aceptado: `auth_leaked_password_protection` (requiere plan Pro).
+
+## Producción (spec 11)
+
+- **Claude no tiene acceso a Producción:** el MCP `supabase` apunta solo a Dev (`bcafdhulvleiegisroth`). No agregar un MCP ni credenciales de Prod; los comandos contra Prod los corre el usuario.
+- Runbook de despliegue: `references/deploy-produccion.md` (plan de origen: `references/plan-migracion-produccion.md`). Prod arranca limpio, sin datos de Dev.
+- Migraciones en orden: `20260923000000_baseline_game_sessions`, `20261004000000_auth_profiles`, `20261005000000_signup_rate_limit`. Toda migración nueva se versiona en `supabase/migrations/` además de aplicarse por MCP en Dev.
 
 ## Arquitectura
 

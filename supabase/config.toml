@@ -1,0 +1,6 @@
+# Config minima para `supabase link` / `supabase db push` (spec 11).
+# No contiene credenciales ni project ref: el ref de Prod se pasa con `supabase link --project-ref`.
+project_id = "arcade-vault"
+
+[db]
+major_version = 17

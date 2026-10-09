@@ -1,6 +1,6 @@
 # 08 — Autenticación con Supabase Auth
 
-**Estado:** Aprobado
+**Estado:** Implementado
 **Depende de:** 04-supabase-integracion (cliente base, `@supabase/ssr` instalado), 05-leaderboard-y-tabla-juegos (`game_sessions`), 07-controles-tactiles-mobile (modal de fin de juego en `GamePlayer.tsx`)
 **Fecha:** 2026-10-04
 **Objetivo:** Reemplazar el login falso de `localStorage` (`av_user`) por autenticación real con Supabase Auth (registro/login por email con verificación, Google y GitHub, logout), con `username` único en una tabla `profiles` que identifica al jugador en `game_sessions`.
