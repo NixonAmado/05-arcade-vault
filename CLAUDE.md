@@ -64,6 +64,12 @@ Supabase Auth con sesión en cookies (`@supabase/ssr`): email+contraseña con ve
 - **Env solo servidor:** `SUPABASE_SERVICE_ROLE_KEY` y `SIGNUP_IP_SALT` (sin prefijo `NEXT_PUBLIC_`, ver `.env.example`). Nunca importarlas desde código cliente.
 - **RLS:** `game_sessions`, `profiles` y `signup_attempts` con RLS activo. Tabla nueva = RLS activo (`signup_attempts` no tiene policies a propósito: solo vía RPC); correr `get_advisors` tras cada migración. Único WARN aceptado: `auth_leaked_password_protection` (requiere plan Pro).
 
+## Producción (spec 11)
+
+- **Claude no tiene acceso a Producción:** el MCP `supabase` apunta solo a Dev (`bcafdhulvleiegisroth`). No agregar un MCP ni credenciales de Prod; los comandos contra Prod los corre el usuario.
+- Runbook de despliegue: `references/deploy-produccion.md` (plan de origen: `references/plan-migracion-produccion.md`). Prod arranca limpio, sin datos de Dev.
+- Migraciones en orden: `20260923000000_baseline_game_sessions`, `20261004000000_auth_profiles`, `20261005000000_signup_rate_limit`. Toda migración nueva se versiona en `supabase/migrations/` además de aplicarse por MCP en Dev.
+
 ## Arquitectura
 
 Proyecto Next.js (App Router):
